@@ -276,18 +276,18 @@ def eval(qrel, result_file, prompt_file, model_name, modified_qrel):
             response, passage, query_mappings[int(sample[0])]
         )
         valid_res_count += valid_res
-        if qrel_data in qrel_data[int(sample[0])]:
+        if int(sample[0]) in qrel_data:
             qrel_data[int(sample[0])][sample[1]] = result
         else:
             qrel_data[int(sample[0])] = {sample[1]: result}
 
-    f_out = open(modified_qrel, "w")
 
-    for qid in qrel_data:
-        for doc_id in qrel_data[qid]:
-            result = str(qrel_data[qid][doc_id]) + "\n"
-            encoded = " ".join([str(qid), "0", doc_id, result]).encode("utf-8")
-            f_out.write(encoded)
+    with open(modified_qrel, "wb") as f_out:
+        for qid in qrel_data:
+            for doc_id in qrel_data[qid]:
+                result = str(qrel_data[qid][doc_id]) + "\n"
+                encoded = " ".join([str(qid), "0", doc_id, result]).encode("utf-8")
+                f_out.write(encoded)
 
     cmd1 = (
         f"python -m pyserini.eval.trec_eval -c -l 2 -m ndcg_cut.10 {qrel} {result_file}"
