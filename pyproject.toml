@@ -49,7 +49,7 @@ push = false
 [tool.setuptools.packages.find]
 where = ["src"]
 include = [
-    "rank_llm",
+    "umbrela",
     "prompts"
 ]
 namespaces = false
