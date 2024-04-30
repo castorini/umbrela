@@ -1,12 +1,11 @@
 import json
 import random
 
-import pandas as pd
 from pyserini.index.lucene import IndexReader
-from pyserini.search import get_qrels
+from pyserini.search import get_qrels, get_topics
 
 
-def get_catwise_data(qrel_data):
+def get_catwise_data(qrel_data, few_shot_count):
     examples = []
     for cat in [0, 1, 2, 3]:
         req_tuple_list = []
@@ -18,11 +17,11 @@ def get_catwise_data(qrel_data):
         print(f"No. of judgments for category {cat}: {len(req_tuple_list)}")
 
         assert (
-            len(req_tuple_list) >= 2
-        ), f"Count of judgments available for category {cat} is lesser than 2."
+            len(req_tuple_list) >= few_shot_count
+        ), f"Count of judgments available for category {cat} is lesser than {few_shot_count}."
 
         if len(req_tuple_list):
-            samples_for_examples = random.sample(req_tuple_list, 2)
+            samples_for_examples = random.sample(req_tuple_list, few_shot_count)
             examples.extend(samples_for_examples)
     return examples
 
@@ -45,7 +44,7 @@ def examples_prompt(few_shot_examples, query_mappings, index_reader, qrel, qrel_
     prompt_examples = ""
 
     for example in few_shot_examples:
-        query = query_mappings[int(example[0])]
+        query = query_mappings[int(example[0])]["title"]
         if qrel in ["dl19-passage", "dl20-passage"]:
             passage = json.loads(index_reader.doc_raw(str(example[1]))).get(
                 "contents", ""
@@ -65,17 +64,16 @@ def examples_prompt(few_shot_examples, query_mappings, index_reader, qrel, qrel_
 
 def get_query_mappings(qrel):
     # Query mappings
-    mapping_file = {
-        "dl19-passage": "query_mappings/2019_queries.tsv",
-        "dl20-passage": "query_mappings/2020_queries.tsv",
-        "dl21-passage": "query_mappings/2021_queries.tsv",
-        "dl22-passage": "query_mappings/2022_queries.tsv",
-        "dl23-passage": "query_mappings/2023_queries.tsv",
+    topic_mapping = {
+        "dl19-passage": "dl19-passage",
+        "dl20-passage": "dl20",
+        "dl21-passage": "dl21",
+        "dl22-passage": "dl22",
+        "dl23-passage": "dl23",
     }
-    query_mappings_df = pd.read_csv(
-        mapping_file[qrel], sep="\t", names=["qid", "query"]
-    )
-    query_mappings = dict(zip(query_mappings_df["qid"], query_mappings_df["query"]))
+    if qrel not in topic_mapping:
+        raise ValueError(f"Invalid value for qrel: {qrel}")
+    query_mappings = get_topics(topic_mapping[qrel])
     return query_mappings
 
 
@@ -88,9 +86,9 @@ def get_index_reader(qrel):
     return index_reader
 
 
-def generate_examples_prompt(qrel):
+def generate_examples_prompt(qrel, few_shot_count):
     qrel_data = get_qrels(qrel)
-    few_shot_examples = get_catwise_data(qrel_data)
+    few_shot_examples = get_catwise_data(qrel_data, few_shot_count)
     query_mappings = get_query_mappings(qrel)
     index_reader = get_index_reader(qrel)
     prompt_examples = examples_prompt(

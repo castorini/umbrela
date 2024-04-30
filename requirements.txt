@@ -1,9 +1,7 @@
-datasets==2.18.0
-openai==1.23.6
-pandas==2.2.2
+datasets==2.19.0
+fschat==0.2.36
+openai==1.24.1
 pyserini==0.35.0
-python-dotenv==1.0.1
 torch==2.2.2
-torch==1.13.1
 tqdm==4.66.2
 transformers==4.40.1
