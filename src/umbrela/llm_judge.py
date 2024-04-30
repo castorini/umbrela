@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.umbrela.utils import qrel_utils
+from umbrela.utils import qrel_utils
 
 
 class LLMJudge(ABC):

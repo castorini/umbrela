@@ -5,15 +5,15 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorWithPadding
 
 from llm_judge import LLMJudge
-from src.umbrela.utils import common_utils
+from umbrela.utils import common_utils
 
 
 class VicunaJudge(LLMJudge):
     def __init__(
         self,
-        qrel,
-        prompt_file,
-        few_shot_count=2,
+        qrel: str,
+        prompt_file: str = "prompts/qrel_fewshot_bing.py",
+        few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
     ) -> None:

@@ -5,15 +5,15 @@ from openai import AzureOpenAI, OpenAI
 from tqdm import tqdm
 
 from llm_judge import LLMJudge
-from src.umbrela.utils import common_utils
+from umbrela.utils import common_utils
 
 
 class GPTJudge(LLMJudge):
     def __init__(
         self,
-        qrel,
-        prompt_file,
-        few_shot_count=2,
+        qrel: str,
+        prompt_file="prompts/qrel_fewshot_bing.py",
+        few_shot_count: int = 2,
         engine=""
     ) -> None:
         model_name = engine if engine else "gpt"

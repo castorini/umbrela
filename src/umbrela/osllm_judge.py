@@ -4,15 +4,15 @@ from tqdm import tqdm
 from transformers.generation import GenerationConfig
 
 from llm_judge import LLMJudge
-from src.umbrela.utils import common_utils
+from umbrela.utils import common_utils
 
 class OSLLMJudge(LLMJudge):
     def __init__(
         self,
-        qrel,
-        prompt_file,
-        model_name,
-        few_shot_count=2,
+        qrel: str,
+        model_name: str,
+        prompt_file: str = "prompts/qrel_fewshot_bing.py",
+        few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
     ) -> None:
