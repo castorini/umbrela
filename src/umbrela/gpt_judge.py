@@ -13,7 +13,7 @@ class GPTJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
-        prompt_file=pkg_resources.resource_filename(
+        prompt_file: str = pkg_resources.resource_filename(
             "umbrela", "prompts/qrel_fewshot_bing.txt"
         ),
         few_shot_count: int = 2,
