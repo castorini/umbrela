@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "umbrela"
-version = "0.0.1"
+version = "0.0.4"
 description = "A Package for generating query-passage relevance assessment labels."
 readme = "README.md"
 authors = [
@@ -25,6 +25,9 @@ requires-python = ">= 3.10"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.package-data]
+umbrela = ["prompts/*.txt"]
 
 [project.urls]
 Homepage = "https://github.com/castorini/umbrela"
@@ -50,6 +53,7 @@ push = false
 where = ["src"]
 include = [
     "umbrela",
+    "umbrela.utils",
     "prompts"
 ]
 namespaces = false

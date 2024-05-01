@@ -1,3 +1,5 @@
+import pkg_resources
+
 import datasets
 import torch
 from torch.utils.data import DataLoader
@@ -12,7 +14,9 @@ class VicunaJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
-        prompt_file: str = "prompts/qrel_fewshot_bing.txt",
+        prompt_file: str = pkg_resources.resource_filename(
+            __name__, "prompts/qrel_fewshot_bing.txt"
+        ),
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
@@ -93,7 +97,7 @@ class VicunaJudge(LLMJudge):
 
         return outputs
 
-    def judge(self, request_dict, max_new_tokens = 100):
+    def judge(self, request_dict, max_new_tokens=100):
         outputs = self.predict_with_llm(request_dict, max_new_tokens)
         return common_utils.prepare_judgments(
             outputs, self.query_passage, self.prompts, self.model_name

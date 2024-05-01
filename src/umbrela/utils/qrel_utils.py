@@ -80,7 +80,7 @@ def get_query_mappings(qrel):
 def get_index_reader(qrel):
     # Index reader
     if qrel in ["dl19-passage", "dl20-passage"]:
-        index_reader = IndexReader("indexes/lucene-index-msmarco-passage")
+        index_reader = IndexReader.from_prebuilt_index("msmarco-v1-passage")
     else:
         index_reader = None
     return index_reader
