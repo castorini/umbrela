@@ -3,7 +3,7 @@ import re
 
 def preprocess_request_dict(request_dict):
     query_passage = []
-    query = request_dict["query"]
+    query = request_dict["query"]["text"]
     for cand in request_dict["candidates"]:
         query_passage.append((query, cand["doc"]["segment"]))
     return query_passage

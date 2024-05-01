@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorWithPadding
 
-from llm_judge import LLMJudge
+from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
 
@@ -12,7 +12,7 @@ class VicunaJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
-        prompt_file: str = "prompts/qrel_fewshot_bing.py",
+        prompt_file: str = "prompts/qrel_fewshot_bing.txt",
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,

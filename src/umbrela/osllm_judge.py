@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 from transformers.generation import GenerationConfig
 
-from llm_judge import LLMJudge
+from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
 class OSLLMJudge(LLMJudge):
@@ -11,7 +11,7 @@ class OSLLMJudge(LLMJudge):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: str = "prompts/qrel_fewshot_bing.py",
+        prompt_file: str = "prompts/qrel_fewshot_bing.txt",
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,

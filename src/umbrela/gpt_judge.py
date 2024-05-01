@@ -4,7 +4,7 @@ import openai
 from openai import AzureOpenAI, OpenAI
 from tqdm import tqdm
 
-from llm_judge import LLMJudge
+from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
 
@@ -12,7 +12,7 @@ class GPTJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
-        prompt_file="prompts/qrel_fewshot_bing.py",
+        prompt_file="prompts/qrel_fewshot_bing.txt",
         few_shot_count: int = 2,
         engine=""
     ) -> None:
