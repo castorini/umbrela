@@ -52,7 +52,7 @@ def examples_prompt(few_shot_examples, query_mappings, index_reader, qrel, qrel_
         else:
             passage = get_passage(example[1])
 
-        res_json = {"O": qrel_data[example[0]][example[1]]}
+        res_json = {"O": int(qrel_data[example[0]][example[1]])}
         prompt_examples += f"""
                 ###
 

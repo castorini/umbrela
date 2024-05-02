@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ```python
 from umbrela.vicuna_judge import VicunaJudge
 
-judge_vicuna = OSLLMJudge("dl19-passage", "lmsys/vicuna-7b-v1.5")
+judge_vicuna = VicunaJudge("dl19-passage")
 ```
 
 #### Passing qrel-passages for evaluations:
