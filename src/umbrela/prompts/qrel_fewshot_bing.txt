@@ -4,6 +4,10 @@ Given a query and a passage, you must provide a score on an integer scale of 0 t
 2 = represents that the passage has some answer for the query, but the answer may be a bit unclear, or hidden amongst extraneous information and 
 3 = represents that the passage is dedicated to the query and contains the exact answer.
 
+Following are some of the examples of relevance categorizations for different categories:
+
+{examples}
+
 Assume that you are writing a report on the subject of the topic. If you would use any of the information contained in the passage in such a report, mark it 1. If the passage is primarily about the topic mark it 3, or contains vital information about the topic, mark it 2. Otherwise, mark it 0.
 
 Query: {query}
