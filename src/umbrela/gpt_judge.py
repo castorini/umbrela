@@ -1,5 +1,6 @@
 import os
 import pkg_resources
+from typing_extensions import Optional
 
 import openai
 from openai import AzureOpenAI, OpenAI
@@ -13,14 +14,13 @@ class GPTJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
-        prompt_file: str = pkg_resources.resource_filename(
-            "umbrela", "prompts/qrel_fewshot_bing.txt"
-        ),
+        prompt_file: Optional[str] = None,
+        prompt_type: Optional[str] = "bing",
         few_shot_count: int = 2,
         engine="",
     ) -> None:
         model_name = engine if engine else "gpt"
-        super().__init__(qrel, prompt_file, model_name, few_shot_count)
+        super().__init__(qrel, prompt_file, prompt_type, model_name, few_shot_count)
         self.create_openai_client()
 
     def create_openai_client(self):

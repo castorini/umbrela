@@ -34,6 +34,15 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
         r'"final_score": (0|1|2|3)',
         r'"score": (0|1|2|3)',
         r'"o_score": (0|1|2|3)',
+        r"relevance category:(0|1|2|3)",
+        r"relevance category: (0|1|2|3)",
+        r"relevance category is (0|1|2|3)",
+        r"\n(0|1|2|3)",
+        r"it falls into the category (0|1|2|3)",
+        r"category (0|1|2|3)",
+        r"relevance category (0|1|2|3)",
+        r"relevance category for this passage would be (0|1|2|3)",
+        r"the relevance category would be (0|1|2|3)",
     ]
     for pattern in patterns:
         matched = re.search(pattern, response, re.IGNORECASE | re.MULTILINE | re.DOTALL)

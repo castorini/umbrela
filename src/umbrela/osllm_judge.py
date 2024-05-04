@@ -1,4 +1,5 @@
 import pkg_resources
+from typing_extensions import Optional
 
 from fastchat.model import load_model
 import torch
@@ -14,14 +15,13 @@ class OSLLMJudge(LLMJudge):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: str = pkg_resources.resource_filename(
-            "umbrela", "prompts/qrel_fewshot_bing.txt"
-        ),
+        prompt_file: Optional[str] = None,
+        prompt_type: Optional[str] = "bing",
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
     ) -> None:
-        super().__init__(qrel, prompt_file, model_name, few_shot_count)
+        super().__init__(qrel, prompt_file, prompt_type, model_name, few_shot_count)
         self._device = device
         if self._device == "cuda":
             assert torch.cuda.is_available()
