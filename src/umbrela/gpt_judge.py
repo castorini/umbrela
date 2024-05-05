@@ -1,5 +1,4 @@
 import os
-import pkg_resources
 from typing_extensions import Optional
 
 import openai
@@ -70,7 +69,7 @@ class GPTJudge(LLMJudge):
     ):
         self.query_passage = common_utils.preprocess_request_dict(request_dict)
         self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self.prompt_template
+            self.query_passage, self.prompt_examples, self._prompt_template
         )
 
         outputs = [

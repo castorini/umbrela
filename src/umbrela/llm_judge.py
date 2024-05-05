@@ -14,7 +14,7 @@ class LLMJudge(ABC):
         model_name,
         few_shot_count,
     ) -> None:
-        assert (
+        assert not (
             prompt_file and prompt_type
         ), "Both prompt_file and prompt_type passed. Only one mode must be selected!!"
 
@@ -39,17 +39,18 @@ class LLMJudge(ABC):
             )
         elif few_shot_count == 0:
             self.prompt_examples = ""
-            if prompt_file == pkg_resources.resource_filename(
-                "umbrela", "prompts/qrel_fewshot_bing.txt"
-            ):
+            if "fewshot" in prompt_file:
                 print(
-                    f"Warning!! default prompts/qrel_fewshot_bing.txt prompt file being used for few_shot_count = 0"
+                    f"Warning!! default fewshot prompt file being used for few_shot_count = 0"
                 )
         else:
             raise ValueError(f"Invalid value for few_shot_count: {few_shot_count}")
 
         with open(prompt_file) as p:
-            self.prompt_template = "".join(p.readlines()).strip()
+            self._prompt_template = "".join(p.readlines()).strip()
+
+    def display_prompt_template(self):
+        print(self._prompt_template)
 
     @abstractmethod
     def predict_with_llm(self, request_dict, max_new_tokens):

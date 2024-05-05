@@ -1,4 +1,3 @@
-import pkg_resources
 from typing_extensions import Optional
 
 import datasets
@@ -39,7 +38,7 @@ class VicunaJudge(LLMJudge):
     ):
         self.query_passage = common_utils.preprocess_request_dict(request_dict)
         self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self.prompt_template
+            self.query_passage, self.prompt_examples, self._prompt_template
         )
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, device_map="auto", low_cpu_mem_usage=True

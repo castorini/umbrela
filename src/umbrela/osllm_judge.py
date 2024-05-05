@@ -1,4 +1,3 @@
-import pkg_resources
 from typing_extensions import Optional
 
 from fastchat.model import load_model
@@ -30,7 +29,7 @@ class OSLLMJudge(LLMJudge):
     def predict_with_llm(self, request_dict, max_new_tokens, batch_size=1):
         self.query_passage = common_utils.preprocess_request_dict(request_dict)
         self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self.prompt_template
+            self.query_passage, self.prompt_examples, self._prompt_template
         )
 
         self._llm, self._tokenizer = load_model(
