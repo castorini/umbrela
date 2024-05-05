@@ -65,7 +65,7 @@ def prepare_judgments(outputs, query_passage, prompts, model_name):
             "query": query,
             "passage": passage,
             "prompt": prompt,
-            "predition": output,
+            "prediction": output,
             "judgment": parse_fewshot_response(output, query, passage)[0],
         }
         judgments.append(judgment)
