@@ -27,6 +27,8 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
     answer = ""
     patterns = [
         r'"o": (0|1|2|3)',
+        r"\'o\': (0|1|2|3)",
+        r"o: (0|1|2|3)",
         r'"overall_score": (0|1|2|3)',
         r'"overall": (0|1|2|3)',
         r'"overall score": (0|1|2|3)',

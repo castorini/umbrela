@@ -18,4 +18,4 @@ Consider the underlying intent of the search.
 Measure how well the content matches a likely intent of the query (M).
 Measure how trustworthy the web page is (T).
 Consider the aspects above and the relative importance of each, and decide on a final score (O). Final score must be an integer value only.
-Produce a JSON dictionary of scores without providing any reasoning.
+Produce a JSON dictionary (format: o: final_score_value) of scores without providing any reasoning.

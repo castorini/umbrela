@@ -1,3 +1,4 @@
+import argparse
 from typing_extensions import Optional
 
 from fastchat.model import load_model
@@ -26,8 +27,11 @@ class OSLLMJudge(LLMJudge):
             assert torch.cuda.is_available()
         self.num_gpus = num_gpus
 
-    def predict_with_llm(self, request_dict, max_new_tokens, batch_size=1):
-        self.query_passage = common_utils.preprocess_request_dict(request_dict)
+    def predict_with_llm(self, request_dict, max_new_tokens, prepocess, batch_size=1):
+        if prepocess:
+            self.query_passage = common_utils.preprocess_request_dict(request_dict)
+        else:
+            self.query_passage = request_dict
         self.prompts = common_utils.generate_prompts(
             self.query_passage, self.prompt_examples, self._prompt_template
         )
@@ -60,8 +64,33 @@ class OSLLMJudge(LLMJudge):
                 )
         return outputs
 
-    def judge(self, request_dict, max_new_tokens=100):
-        outputs = self.predict_with_llm(request_dict, max_new_tokens)
+    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return common_utils.prepare_judgments(
             outputs, self.query_passage, self.prompts, self.model_name
         )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--qrel", type=str, help="qrels file", required=True)
+    parser.add_argument("--result_file", type=str, help="retriever result file")
+    parser.add_argument("--prompt_file", type=str, help="prompt file")
+    parser.add_argument(
+        "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
+    )
+    parser.add_argument("--model", type=str, help="model name")
+    parser.add_argument(
+        "--few_shot_count", type=int, help="Few shot count for each category."
+    )
+
+    args = parser.parse_args()
+
+    judge = OSLLMJudge(
+        args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
+    )
+    judge.evalute_results_with_qrel(args.result_file)
+
+
+if __name__ == "__main__":
+    main()

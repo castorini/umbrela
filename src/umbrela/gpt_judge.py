@@ -66,8 +66,12 @@ class GPTJudge(LLMJudge):
         self,
         request_dict: list,
         max_new_tokens: int,
+        prepocess: bool,
     ):
-        self.query_passage = common_utils.preprocess_request_dict(request_dict)
+        if prepocess:
+            self.query_passage = common_utils.preprocess_request_dict(request_dict)
+        else:
+            self.query_passage = request_dict
         self.prompts = common_utils.generate_prompts(
             self.query_passage, self.prompt_examples, self._prompt_template
         )
@@ -77,8 +81,8 @@ class GPTJudge(LLMJudge):
         ]
         return outputs
 
-    def judge(self, request_dict, max_new_tokens=100):
-        outputs = self.predict_with_llm(request_dict, max_new_tokens)
+    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return common_utils.prepare_judgments(
             outputs, self.query_passage, self.prompts, self.model_name
         )

@@ -1,3 +1,4 @@
+import argparse
 from typing_extensions import Optional
 
 import datasets
@@ -14,13 +15,14 @@ class VicunaJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
+        model_name: str = "lmsys/vicuna-7b-v1.5-16k",
         prompt_file: Optional[str] = None,
         prompt_type: Optional[str] = "bing",
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
     ) -> None:
-        super().__init__(qrel, prompt_file, prompt_type, "lmsys/vicuna-7b-v1.5-16k", few_shot_count)
+        super().__init__(qrel, prompt_file, prompt_type, model_name, few_shot_count)
         self._device = device
         if self._device == "cuda":
             assert torch.cuda.is_available()
@@ -30,20 +32,29 @@ class VicunaJudge(LLMJudge):
         self,
         request_dict: list,
         max_new_tokens: int,
+        prepocess: bool,
         do_sample: bool = True,
         top_p: float = 1.0,
         num_beams: int = 1,
         batch_size: int = 1,
         num_workers: int = 16,
     ):
-        self.query_passage = common_utils.preprocess_request_dict(request_dict)
+        if prepocess:
+            self.query_passage = common_utils.preprocess_request_dict(request_dict)
+        else:
+            self.query_passage = request_dict
         self.prompts = common_utils.generate_prompts(
             self.query_passage, self.prompt_examples, self._prompt_template
         )
         model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, device_map="auto", low_cpu_mem_usage=True
+            self.model_name,
+            device_map="auto",
+            low_cpu_mem_usage=True,
         )
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            use_fast=True,
+        )
         tokenizer.use_default_system_prompt = False
         tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
 
@@ -96,8 +107,33 @@ class VicunaJudge(LLMJudge):
 
         return outputs
 
-    def judge(self, request_dict, max_new_tokens=100):
-        outputs = self.predict_with_llm(request_dict, max_new_tokens)
+    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return common_utils.prepare_judgments(
             outputs, self.query_passage, self.prompts, self.model_name
         )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--qrel", type=str, help="qrels file", required=True)
+    parser.add_argument("--result_file", type=str, help="retriever result file")
+    parser.add_argument("--prompt_file", type=str, help="prompt file")
+    parser.add_argument(
+        "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
+    )
+    parser.add_argument("--model", type=str, help="model name")
+    parser.add_argument(
+        "--few_shot_count", type=int, help="Few shot count for each category."
+    )
+
+    args = parser.parse_args()
+
+    judge = VicunaJudge(
+        args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
+    )
+    judge.evalute_results_with_qrel(args.result_file)
+
+
+if __name__ == "__main__":
+    main()
