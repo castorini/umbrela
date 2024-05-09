@@ -79,7 +79,7 @@ class LLMJudge(ABC):
         judgments = self.judge(holes_qp, prepocess=False)
 
         for judgment, pair, gt in zip(judgments, holes_tup, gts):
-            curr_res = int(gt == judgment["judgement"])
+            curr_res = int(gt == judgment["judgment"])
             if cat not in valid_res_count:
                 valid_res_count[cat] = curr_res
             else:
