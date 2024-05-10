@@ -6,7 +6,6 @@ import time
 from umbrela.utils import qrel_utils
 
 
-
 class LLMJudge(ABC):
     def __init__(
         self,
@@ -64,48 +63,74 @@ class LLMJudge(ABC):
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         pass
 
-    def evalute_results_with_qrel(self, result_file, removal_fraction=0.9, removal_cat=[1, 2, 3]):
+    def evalute_results_with_qrel(
+        self, result_file, removal_fraction=0.9, removal_cat=[1, 2, 3]
+    ):
         holes = qrel_utils.generate_holes(self.qrel, removal_fraction, removal_cat)
         qrel_data = qrel_utils.get_qrels(self.qrel)
 
-        valid_res_count = {}
-        holes_qp = []
-        gts = []
-        holes_tup = []
-        for cat in holes:
-            holes_tup += holes[cat]
-            holes_qp += qrel_utils.prepare_query_passage(holes[cat], self.qrel)
-            gts += [cat] * len(holes[cat])
-        judgments = self.judge(holes_qp, prepocess=False)
-
-        for judgment, pair, gt in zip(judgments, holes_tup, gts):
-            curr_res = int(gt == judgment["judgment"])
-            if cat not in valid_res_count:
-                valid_res_count[cat] = curr_res
-            else:
-                valid_res_count[cat] += curr_res
-            qrel_data[pair[0]][pair[1]] = int(judgment["judgment"])
-        
-        for cat in valid_res_count:
-            print(f"Stats for {cat}. Correct judgments count: {valid_res_count[cat]}/{len(holes[cat])}.")
-        
-        result_dir = f"modified_qrels/"
+        result_dir = f"modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
-        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name}_{int(time.time())}"
-
+        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, removal_cat))}_{int(removal_fraction * 100)}.txt"
         print(f"Output file: {modified_qrel}")
-        
-        with open(modified_qrel, "wb") as f_out:
-            for qid in qrel_data:
-                for doc_id in qrel_data[qid]:
-                    result = str(qrel_data[qid][doc_id]) + "\n"
-                    encoded = " ".join([str(qid), "0", doc_id, result]).encode("utf-8")
-                    f_out.write(encoded)
 
-        print("-"*79)
+        if os.path.exists(modified_qrel):
+            org_qd = qrel_utils.get_qrels(self.qrel)
+            new_qd = qrel_utils.get_qrels(modified_qrel)
+
+            unmatch_dict = {}
+
+            for qid in org_qd:
+                for docid in org_qd[qid]:
+                    if org_qd[qid][docid] not in unmatch_dict:
+                        unmatch_dict[org_qd[qid][docid]] = []
+                    if org_qd[qid][docid] != new_qd[qid][docid]:
+                        unmatch_dict[org_qd[qid][docid]].append(0)
+                    else:
+                        unmatch_dict[org_qd[qid][docid]].append(1)
+            for cat in unmatch_dict:
+                print(
+                    f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+                )
+        else:
+            valid_res_count = {}
+            holes_qp = []
+            gts = []
+            holes_tup = []
+            for cat in holes:
+                holes_tup += holes[cat]
+                holes_qp += qrel_utils.prepare_query_passage(holes[cat], self.qrel)
+                gts += [cat] * len(holes[cat])
+            judgments = self.judge(holes_qp, prepocess=False)
+
+            for judgment, pair, gt in zip(judgments, holes_tup, gts):
+                curr_res = int(gt == judgment["judgment"])
+                if gt not in valid_res_count:
+                    valid_res_count[gt] = curr_res
+                else:
+                    valid_res_count[gt] += curr_res
+                qrel_data[pair[0]][pair[1]] = int(judgment["judgment"])
+
+            for cat in valid_res_count:
+                print(
+                    f"Stats for {cat}. Correct judgments count: {valid_res_count[cat]}/{len(holes[cat])}."
+                )
+
+            with open(modified_qrel, "wb") as f_out:
+                for qid in qrel_data:
+                    for doc_id in qrel_data[qid]:
+                        result = str(qrel_data[qid][doc_id]) + "\n"
+                        encoded = " ".join(
+                            [str(qid), "0", str(doc_id), str(result)]
+                        ).encode("utf-8")
+                        f_out.write(encoded)
+
+        print("-" * 79)
         output = {}
         output["original"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
-        output[f"modified_{int(removal_fraction * 100)}"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
+        output[f"modified_{int(removal_fraction * 100)}"] = qrel_utils.fetch_ndcf_score(
+            modified_qrel, result_file
+        )
         print(output)
