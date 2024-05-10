@@ -90,12 +90,8 @@ class LLMJudge(ABC):
                         unmatch_dict[org_qd[qid][docid]].append(0)
                     else:
                         unmatch_dict[org_qd[qid][docid]].append(1)
-            for cat in unmatch_dict:
-                print(
-                    f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
-                )
         else:
-            valid_res_count = {}
+            unmatch_dict = {}
             holes_qp = []
             gts = []
             holes_tup = []
@@ -107,16 +103,11 @@ class LLMJudge(ABC):
 
             for judgment, pair, gt in zip(judgments, holes_tup, gts):
                 curr_res = int(gt == judgment["judgment"])
-                if gt not in valid_res_count:
-                    valid_res_count[gt] = curr_res
+                if gt not in unmatch_dict:
+                    unmatch_dict[gt] = [curr_res]
                 else:
-                    valid_res_count[gt] += curr_res
+                    unmatch_dict[gt].append(curr_res)
                 qrel_data[pair[0]][pair[1]] = int(judgment["judgment"])
-
-            for cat in valid_res_count:
-                print(
-                    f"Stats for {cat}. Correct judgments count: {valid_res_count[cat]}/{len(holes[cat])}."
-                )
 
             with open(modified_qrel, "wb") as f_out:
                 for qid in qrel_data:
@@ -126,6 +117,10 @@ class LLMJudge(ABC):
                             [str(qid), "0", str(doc_id), str(result)]
                         ).encode("utf-8")
                         f_out.write(encoded)
+        for cat in unmatch_dict:
+                print(
+                    f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+                )
 
         print("-" * 79)
         output = {}
