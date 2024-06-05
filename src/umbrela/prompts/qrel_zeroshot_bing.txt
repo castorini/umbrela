@@ -4,7 +4,7 @@ Given a query and a passage, you must provide a score on an integer scale of 0 t
 2 = represents that the passage has some answer for the query, but the answer may be a bit unclear, or hidden amongst extraneous information and 
 3 = represents that the passage is dedicated to the query and contains the exact answer.
 
-Assume that you are writing a report on the subject of the topic. If you would use any of the information contained in the passage in such a report, mark it 1. If the passage is primarily about the topic mark it 3, or contains vital information about the topic, mark it 2. Otherwise, mark it 0.
+Important Instruction: Assign category 1 if the passage is somewhat related to the topic but not completely, category 2 if passage presents something very important related to the entire topic but also has some extra information and category 3 if the passage only and entirely refers to the topic. If none of the above satisfies give it category 0.
 
 Query: {query}
 Passage: {passage}
@@ -12,6 +12,6 @@ Passage: {passage}
 Split this problem into steps:
 Consider the underlying intent of the search.
 Measure how well the content matches a likely intent of the query (M).
-Measure how trustworthy the web page is (T).
+Measure how trustworthy the passage is (T).
 Consider the aspects above and the relative importance of each, and decide on a final score (O). Final score must be an integer value only.
-Produce a JSON dictionary of scores without providing any reasoning.
+Do not provide any code in result. Provide each score in the format of: ##final score: score without providing any reasoning.

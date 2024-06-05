@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 import pkg_resources
 import os
+import statistics
 import time
 
-from umbrela.utils import qrel_utils
+import matplotlib.pyplot as plt
+from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
+from umbrela.utils import qrel_utils, common_utils
 
 
 class LLMJudge(ABC):
@@ -20,6 +23,7 @@ class LLMJudge(ABC):
         ), "Both prompt_file and prompt_type passed. Only one mode must be selected!!"
 
         self.qrel = qrel
+        self.few_shot_count = few_shot_count
 
         if prompt_type:
             if prompt_type not in ["bing", "basic"]:
@@ -63,24 +67,53 @@ class LLMJudge(ABC):
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         pass
 
-    def evalute_results_with_qrel(
-        self, result_file, removal_fraction=0.9, removal_cat=[1, 2, 3]
-    ):
-        holes = qrel_utils.generate_holes(self.qrel, removal_fraction, removal_cat)
-        qrel_data = qrel_utils.get_qrels(self.qrel)
+    def calculate_kappa(self, gts, preds):
+        print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
+        print("-" * 79)
+        gts_bin = [1 if int(x) > 1 else 0 for x in gts]
+        preds_bin = [1 if int(x) > 1 else 0 for x in preds]
+        print(f"Binarized Kohen kappa overall: {cohen_kappa_score(gts_bin, preds_bin)}")
+        print("-" * 79)
 
+    def draw_confusion_matrix(self, gts, preds):
+        conf_mat = confusion_matrix(gts, preds)
+        print(conf_mat)
+
+        os.makedirs("conf_matrix", exist_ok=True)
+        disp = ConfusionMatrixDisplay(confusion_matrix=conf_mat)
+        fig, ax = plt.subplots()
+        disp.plot(ax=ax, cmap="GnBu")
+        for text in disp.text_.ravel():
+            text.set_fontsize(16)
+        ax.set_title(self.qrel, fontsize=14)
+        ax.set_xlabel("Predicted label", fontsize=14)
+        ax.set_ylabel("True label", fontsize=14)
+        plt.savefig(f"conf_matrix/{self.qrel}.png")
+
+    def evalute_results_with_qrel(
+        self,
+        result_file,
+        removal_fraction=1,
+        removal_cat=[0, 1, 2, 3],
+        regenerate=False,
+        num_samples=1,
+    ):
         result_dir = f"modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
-        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, removal_cat))}_{int(removal_fraction * 100)}.txt"
+        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, removal_cat))}_{int(removal_fraction * 100)}_{self.few_shot_count}_{num_samples}.txt"
         print(f"Output file: {modified_qrel}")
 
-        if os.path.exists(modified_qrel):
+        if os.path.exists(modified_qrel) and not regenerate:
             org_qd = qrel_utils.get_qrels(self.qrel)
             new_qd = qrel_utils.get_qrels(modified_qrel)
 
+            dropped_cat_count = qrel_utils.get_dropped_cat_count(
+                self.qrel, removal_fraction
+            )
             unmatch_dict = {}
+            gts, preds = [], []
 
             for qid in org_qd:
                 for docid in org_qd[qid]:
@@ -88,44 +121,79 @@ class LLMJudge(ABC):
                         unmatch_dict[org_qd[qid][docid]] = []
                     if org_qd[qid][docid] != new_qd[qid][docid]:
                         unmatch_dict[org_qd[qid][docid]].append(0)
+                        gts.append(org_qd[qid][docid])
+                        preds.append(new_qd[qid][docid])
                     else:
                         unmatch_dict[org_qd[qid][docid]].append(1)
+                        if dropped_cat_count[str(org_qd[qid][docid])] > 0:
+                            dropped_cat_count[str(org_qd[qid][docid])] = (
+                                dropped_cat_count[str(org_qd[qid][docid])] - 1
+                            )
+                        else:
+                            gts.append(org_qd[qid][docid])
+                            preds.append(new_qd[qid][docid])
+
         else:
+            holes_tup, gts = qrel_utils.generate_holes(
+                self.qrel, removal_fraction, removal_cat
+            )
+            qrel_data = qrel_utils.get_qrels(self.qrel)
             unmatch_dict = {}
-            holes_qp = []
-            gts = []
-            holes_tup = []
-            for cat in holes:
-                holes_tup += holes[cat]
-                holes_qp += qrel_utils.prepare_query_passage(holes[cat], self.qrel)
-                gts += [cat] * len(holes[cat])
-            judgments = self.judge(holes_qp, prepocess=False)
+            holes_qp = qrel_utils.prepare_query_passage(holes_tup, self.qrel)
+            if num_samples > 1:
+                holes_qp = [item for item in holes_qp for _ in range(num_samples)]
+                holes_tup = [item for item in holes_tup for _ in range(num_samples)]
+                gts = [item for item in gts for _ in range(num_samples)]
 
-            for judgment, pair, gt in zip(judgments, holes_tup, gts):
-                curr_res = int(gt == judgment["judgment"])
-                if gt not in unmatch_dict:
-                    unmatch_dict[gt] = [curr_res]
-                else:
-                    unmatch_dict[gt].append(curr_res)
-                qrel_data[pair[0]][pair[1]] = int(judgment["judgment"])
+            judgments = self.judge(holes_qp, prepocess=False, max_new_tokens=200)
 
-            with open(modified_qrel, "wb") as f_out:
-                for qid in qrel_data:
-                    for doc_id in qrel_data[qid]:
-                        result = str(qrel_data[qid][doc_id]) + "\n"
-                        encoded = " ".join(
-                            [str(qid), "0", str(doc_id), str(result)]
-                        ).encode("utf-8")
-                        f_out.write(encoded)
-        for cat in unmatch_dict:
+            valid_res = {}
+            preds = []
+            gts_valid, preds_valid = [], []
+            for index in range(0, len(judgments), num_samples):
+                temp = []
+                for internal_index in range(index, index + num_samples):
+                    gt = gts[internal_index]
+                    judgment = judgments[internal_index]
+                    preds.append(judgment["judgment"])
+                    curr_res = int(gt == judgment["judgment"])
+                    temp.append(judgment["judgment"])
+                    if gt not in unmatch_dict:
+                        unmatch_dict[gt] = [curr_res]
+                    else:
+                        unmatch_dict[gt].append(curr_res)
+                    if judgment["result_status"]:
+                        gts_valid.append(gt)
+                        preds_valid.append(judgment["judgment"])
+                        if gt not in valid_res:
+                            valid_res[gt] = [curr_res]
+                        else:
+                            valid_res[gt].append(curr_res)
+                pair = holes_tup[index]
+                qrel_data[pair[0]][pair[1]] = int(statistics.mode(temp))
+
+            common_utils.write_modified_qrel(qrel_data, modified_qrel)
+            print("For valid results:")
+            self.calculate_kappa(gts_valid, preds_valid)
+            for cat in valid_res:
                 print(
-                    f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+                    f"Stats for {cat}. Correct judgments count in valid result: {sum(valid_res[cat])}/{len(valid_res[cat])}"
                 )
 
-        print("-" * 79)
-        output = {}
-        output["original"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
-        output[f"modified_{int(removal_fraction * 100)}"] = qrel_utils.fetch_ndcf_score(
-            modified_qrel, result_file
-        )
-        print(output)
+        print("For overall results:")
+        self.calculate_kappa(gts, preds)
+        self.draw_confusion_matrix(gts, preds)
+
+        for cat in unmatch_dict:
+            print(
+                f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+            )
+
+        if result_file:
+            print("-" * 79)
+            output = {}
+            output["original"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
+            output[f"modified_{int(removal_fraction * 100)}"] = (
+                qrel_utils.fetch_ndcf_score(modified_qrel, result_file)
+            )
+            print(output)

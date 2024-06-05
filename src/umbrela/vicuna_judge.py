@@ -1,6 +1,8 @@
 import argparse
 from typing_extensions import Optional
+import os
 
+from dotenv import load_dotenv
 import datasets
 import torch
 from torch.utils.data import DataLoader
@@ -50,10 +52,14 @@ class VicunaJudge(LLMJudge):
             self.model_name,
             device_map="auto",
             low_cpu_mem_usage=True,
+            token=os.environ["HF_TOKEN"],
+            cache_dir=os.environ["HF_CACHE_DIR"],
         )
         tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
             use_fast=True,
+            token=os.environ["HF_TOKEN"],
+            cache_dir=os.environ["HF_CACHE_DIR"],
         )
         tokenizer.use_default_system_prompt = False
         tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
@@ -126,13 +132,23 @@ def main():
     parser.add_argument(
         "--few_shot_count", type=int, help="Few shot count for each category."
     )
+    parser.add_argument("--removal_fraction", type=float, default=1)
+    parser.add_argument("--num_sample", type=int, default=1)
+    parser.add_argument("--regenerate", action="store_true")
 
     args = parser.parse_args()
+    load_dotenv()
 
     judge = VicunaJudge(
         args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
     )
-    judge.evalute_results_with_qrel(args.result_file)
+    judge.evalute_results_with_qrel(
+        args.result_file,
+        removal_fraction=args.removal_fraction,
+        regenerate=args.regenerate,
+        num_samples=args.num_sample,
+        removal_cat=[0, 1, 2, 3],
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
+import argparse
 import os
 from typing_extensions import Optional
 
+from dotenv import load_dotenv
 import openai
 from openai import AzureOpenAI, OpenAI
 from tqdm import tqdm
@@ -50,6 +52,10 @@ class GPTJudge(LLMJudge):
                 model=os.environ["DEPLOYMENT_NAME"],
                 messages=messages,
                 max_tokens=max_new_tokens,
+                temperature=0,
+                top_p=1,
+                frequency_penalty=0.5,
+                presence_penalty=0,
             )
             output = (
                 response.choices[0].message.content.lower()
@@ -86,3 +92,39 @@ class GPTJudge(LLMJudge):
         return common_utils.prepare_judgments(
             outputs, self.query_passage, self.prompts, self.model_name
         )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--qrel", type=str, help="qrels file", required=True)
+    parser.add_argument("--result_file", type=str, help="retriever result file")
+    parser.add_argument("--prompt_file", type=str, help="prompt file")
+    parser.add_argument(
+        "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
+    )
+    parser.add_argument("--model", type=str, help="model name")
+    parser.add_argument(
+        "--few_shot_count", type=int, help="Few shot count for each category."
+    )
+    parser.add_argument("--removal_fraction", type=float, default=1)
+    parser.add_argument("--num_sample", type=int, default=1)
+    parser.add_argument("--regenerate", action="store_true")
+
+    args = parser.parse_args()
+
+    load_dotenv()
+
+    judge = GPTJudge(
+        args.qrel, args.prompt_file, args.prompt_type, args.few_shot_count, args.model
+    )
+    judge.evalute_results_with_qrel(
+        args.result_file,
+        removal_fraction=args.removal_fraction,
+        regenerate=args.regenerate,
+        num_samples=args.num_sample,
+        removal_cat=[0, 1, 2, 3],
+    )
+
+
+if __name__ == "__main__":
+    main()
