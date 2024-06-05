@@ -17,7 +17,7 @@ class GPTJudge(LLMJudge):
         qrel: str,
         prompt_file: Optional[str] = None,
         prompt_type: Optional[str] = "bing",
-        few_shot_count: int = 2,
+        few_shot_count: int = 0,
         engine="",
     ) -> None:
         model_name = engine if engine else "gpt"

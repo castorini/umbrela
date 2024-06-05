@@ -28,9 +28,9 @@ pip install -r requirements.txt
 
 #### Setting up the model jugde:
 ```python
-from umbrela.vicuna_judge import VicunaJudge
+from umbrela.gpt_judge import GPTJudge
 
-judge_vicuna = VicunaJudge("dl19-passage")
+judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing")
 ```
 
 #### Passing qrel-passages for evaluations:
@@ -43,12 +43,11 @@ input_dict = {
                 "segment": "The life cycle of a flea can last anywhere from 20 days to an entire year. It depends on how long the flea remains in the dormant stage (eggs, larvae, pupa). Outside influences, such as weather, affect the flea cycle. A female flea can lay around 20 to 25 eggs in one day."
             },
             "docid": "4834547",
-            "score": 14.971799850463867,
         },
     ]
 }
 
-judgments = judge_vicuna.judge(input_dict)
+judgments = judge_gpt.judge(request_dict=input_dict)
 ```
 
 
