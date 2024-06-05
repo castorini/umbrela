@@ -50,6 +50,11 @@ input_dict = {
 judgments = judge_gpt.judge(request_dict=input_dict)
 ```
 
+#### Evaluation for complete judgment:
+```bash
+python umbrela/gpt_judge.py --qrel dl19-passage --result_file <path/to/result-file> --prompt_type bing --model gpt-35-t --few_shot_count 0 --removal_fraction 1
+```
+
 
 ## 🙏 Acknowledgments
 
