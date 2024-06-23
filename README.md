@@ -55,6 +55,23 @@ judgments = judge_gpt.judge(request_dict=input_dict)
 python umbrela/gpt_judge.py --qrel dl19-passage --result_file <path/to/result-file> --prompt_type bing --model gpt-4o --few_shot_count 0 --removal_fraction 1
 ```
 
+## ✨ References
+
+If you use umBRELA, please cite the following paper:
+
+[[2406.06519] UMBRELA: UMbrela is the (Open-Source Reproduction of the) Bing RELevance Assessor](https://arxiv.org/abs/2406.06519)
+
+<!-- {% raw %} -->
+```
+@ARTICLE{upadhyay2024umbrela,
+  title   = {UMBRELA: UMbrela is the (Open-Source Reproduction of the) Bing RELevance Assessor},
+  author  = {Shivani Upadhyay and Ronak Pradeep and Nandan Thakur and Nick Craswell and Jimmy Lin},
+  year    = {2024},
+  journal = {arXiv:2406.06519}
+}
+```
+<!-- {% endraw %} -->
+
 
 ## 🙏 Acknowledgments
 
