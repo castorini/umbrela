@@ -35,10 +35,15 @@ AZURE_OPENAI_API_BASE=
 DEPLOYMENT_NAME=
 ```
 
+This an example of using the judge from a notebook.
 ```python
 from umbrela.gpt_judge import GPTJudge
+from dotenv import load_dotenv
 
-judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o-mini")
+load_dotenv()
+
+MODEL_NAME="gpt-4o-mini"
+judge_gpt = GPTJudge(qrel="test_qrels", prompt_type="bing", engine=MODEL_NAME)
 ```
 
 #### Passing qrel-passages for evaluations:
@@ -56,6 +61,11 @@ input_dict = {
 }
 
 judgments = judge_gpt.judge(request_dict=input_dict)
+```
+
+The judge can also be invoked through a command line, e.g.:
+```bash
+python -m umbrela.gpt_judge
 ```
 
 #### Evaluation for complete judgment:
