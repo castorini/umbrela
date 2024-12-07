@@ -49,7 +49,7 @@ class GPTJudge(LLMJudge):
         ]
         try:
             response = self.client.chat.completions.create(
-                model=os.environ["DEPLOYMENT_NAME"],
+                model=self.engine,
                 messages=messages,
                 max_tokens=max_new_tokens,
                 temperature=0,

@@ -5,3 +5,4 @@ pyserini>=0.35.0
 torch>=2.2.2
 tqdm>=4.66.2
 transformers>=4.40.1
+python_dotenv
