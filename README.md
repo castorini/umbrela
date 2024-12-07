@@ -27,10 +27,18 @@ pip install -r requirements.txt
 ### Judgment generation snippet
 
 #### Setting up the model jugde:
+Using a cloud model requires a configuration in the `.env` file or an explicit setting of environment variables. Here is an example of `.env` file to access GPT-4-mini (insert your actual secret API key below):
+```
+OPEN_AI_API_KEY=<INSERT YOUR SECRET KEY HERE>
+AZURE_OPENAI_API_VERSION=
+AZURE_OPENAI_API_BASE=
+DEPLOYMENT_NAME=
+```
+
 ```python
 from umbrela.gpt_judge import GPTJudge
 
-judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing")
+judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o-mini")
 ```
 
 #### Passing qrel-passages for evaluations:
