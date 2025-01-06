@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import datasets
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+#from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorWithPadding
 
 from umbrela.llm_judge import LLMJudge
@@ -86,7 +86,8 @@ class VicunaJudge(LLMJudge):
         )
 
         outputs = []
-        for batch in tqdm(test_dataloader):
+        #for batch in tqdm(test_dataloader):
+        for batch in test_dataloader:
             for key in batch.keys():
                 batch[key] = batch[key].to(self._device)
 

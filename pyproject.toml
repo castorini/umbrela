@@ -21,7 +21,7 @@ classifiers = [
 ]
 keywords = ["LLM", "evaluation", "information retrieval"]
 dynamic = ["dependencies"]
-requires-python = ">= 3.10"
+requires-python = ">= 3.9"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

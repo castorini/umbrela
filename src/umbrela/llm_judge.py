@@ -5,7 +5,7 @@ import statistics
 import time
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
+#from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
 from umbrela.utils import qrel_utils, common_utils
 
 
