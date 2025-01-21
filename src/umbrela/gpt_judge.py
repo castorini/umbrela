@@ -5,7 +5,7 @@ from typing_extensions import Optional
 from dotenv import load_dotenv
 import openai
 from openai import AzureOpenAI, OpenAI
-from tqdm import tqdm
+#from tqdm import tqdm
 
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
@@ -49,7 +49,7 @@ class GPTJudge(LLMJudge):
         ]
         try:
             response = self.client.chat.completions.create(
-                model=os.environ["DEPLOYMENT_NAME"],
+                model=self.engine,
                 messages=messages,
                 max_tokens=max_new_tokens,
                 temperature=0,
@@ -83,7 +83,8 @@ class GPTJudge(LLMJudge):
         )
 
         outputs = [
-            self.run_gpt(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
+            #self.run_gpt(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
+            self.run_gpt(prompt, max_new_tokens) for prompt in self.prompts
         ]
         return outputs
 

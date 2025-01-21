@@ -6,8 +6,8 @@ import re
 import platform
 import subprocess
 
-from pyserini.index.lucene import IndexReader
-from pyserini.search import get_qrels_file, get_topics
+#from pyserini.index.lucene import IndexReader
+#from pyserini.search import get_qrels_file, get_topics
 
 
 def get_catwise_data(qrel_data, few_shot_count):

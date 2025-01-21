@@ -1,4 +1,4 @@
-# umBRELA
+# umBRELA (THIS IS A SLIGHTLY SIMPLIFIED VERSION THAT DOES NOT USE PYSERINI AND DOES NOT DISPLAY PROGRESS BAR WHILE JUDGING)
 
 ## 📟 Instructions
 
@@ -27,10 +27,23 @@ pip install -r requirements.txt
 ### Judgment generation snippet
 
 #### Setting up the model jugde:
+Using a cloud model requires a configuration in the `.env` file or an explicit setting of environment variables. Here is an example of `.env` file to access GPT-4-mini (insert your actual secret API key below):
+```
+OPEN_AI_API_KEY=<INSERT YOUR SECRET KEY HERE>
+AZURE_OPENAI_API_VERSION=
+AZURE_OPENAI_API_BASE=
+DEPLOYMENT_NAME=
+```
+
+This an example of using the judge from a notebook.
 ```python
 from umbrela.gpt_judge import GPTJudge
+from dotenv import load_dotenv
 
-judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing")
+load_dotenv()
+
+MODEL_NAME="gpt-4o-mini"
+judge_gpt = GPTJudge(qrel="test_qrels", prompt_type="bing", engine=MODEL_NAME)
 ```
 
 #### Passing qrel-passages for evaluations:
@@ -48,6 +61,11 @@ input_dict = {
 }
 
 judgments = judge_gpt.judge(request_dict=input_dict)
+```
+
+The judge can also be invoked through a command line, e.g.:
+```bash
+python -m umbrela.gpt_judge
 ```
 
 #### Evaluation for complete judgment:

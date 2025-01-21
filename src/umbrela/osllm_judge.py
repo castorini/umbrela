@@ -3,7 +3,7 @@ from typing_extensions import Optional
 
 from fastchat.model import load_model
 import torch
-from tqdm import tqdm
+#from tqdm import tqdm
 from transformers.generation import GenerationConfig
 
 from umbrela.llm_judge import LLMJudge
@@ -45,7 +45,8 @@ class OSLLMJudge(LLMJudge):
         gen_cfg.do_sample = False
 
         outputs = []
-        for i in tqdm(range(0, len(self.prompts), batch_size)):
+        #for i in tqdm(range(0, len(self.prompts), batch_size)):
+        for i in range(0, len(self.prompts), batch_size):
             inputs = self._tokenizer(self.prompts[i : i + batch_size])
             inputs = {k: torch.tensor(v).to(self._device) for k, v in inputs.items()}
             output = self._llm.generate(**inputs, generation_config=gen_cfg)
