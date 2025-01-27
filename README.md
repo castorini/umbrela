@@ -29,8 +29,11 @@ pip install -r requirements.txt
 #### Setting up the model jugde:
 ```python
 from umbrela.gpt_judge import GPTJudge
+from dotenv import load_dotenv
 
-judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing")
+load_dotenv()
+
+judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o")
 ```
 
 #### Passing qrel-passages for evaluations:

@@ -98,7 +98,7 @@ def generate_examples_prompt(qrel, few_shot_count):
     )
     return prompt_examples
 
-def generate_holes(qrel, removal_fraction, removal_cat, exception_qid = []):
+def generate_holes(qrel, removal_cat=[0, 1, 2, 3], exception_qid = []):
     qrel_data = get_qrels(qrel)
     holes = []
     gts = []
@@ -113,9 +113,8 @@ def generate_holes(qrel, removal_fraction, removal_cat, exception_qid = []):
                     if qid not in exception_qid:
                         req_tuple_list.append((qid, doc_id))
     
-        sample_size = int(total_count * removal_fraction)
-        samples = random.sample(req_tuple_list, sample_size)
-        print(f"No. of holes created for category {cat}: {sample_size}")
+        samples = req_tuple_list
+        print(f"No. of judgments for category {cat}: {len(req_tuple_list)}")
         holes += samples
         gts += [cat] * len(samples)
     return holes, gts
@@ -205,7 +204,7 @@ def get_dropped_cat_count(qrel, removal_fraction):
                   req_tuple_list.append((qid, doc_id))
 
       print(
-          f"No. of judgments for category {cat}: {len(req_tuple_list)}. Judgments that remain intact: {len(req_tuple_list) - int(len(req_tuple_list) * 0.9)}"
+          f"No. of judgments for category {cat}: {len(req_tuple_list)}. Judgments that remain intact: {len(req_tuple_list) - int(len(req_tuple_list) * removal_fraction)}"
       )
       cat_dict[str(cat)] = len(req_tuple_list) - int(len(req_tuple_list) * removal_fraction)
   return cat_dict
