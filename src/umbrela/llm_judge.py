@@ -93,15 +93,16 @@ class LLMJudge(ABC):
     def evalute_results_with_qrel(
         self,
         result_file,
-        removal_cat=[0, 1, 2, 3],
+        judge_cat=[0, 1, 2, 3],
         regenerate=False,
         num_samples=1,
+        return_results_path=False,
     ):
         result_dir = f"modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
-        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{self.few_shot_count}_{num_samples}.txt"
+        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, judge_cat))}_{self.few_shot_count}_{num_samples}.txt"
         print(f"Output file: {modified_qrel}")
 
         if os.path.exists(modified_qrel) and not regenerate:
@@ -115,12 +116,14 @@ class LLMJudge(ABC):
                 for docid in org_qd[qid]:
                     if org_qd[qid][docid] not in unmatch_dict:
                         unmatch_dict[org_qd[qid][docid]] = []
-                    unmatch_dict[org_qd[qid][docid]].append(int(org_qd[qid][docid] == new_qd[qid][docid]))
+                    unmatch_dict[org_qd[qid][docid]].append(
+                        int(org_qd[qid][docid] == new_qd[qid][docid])
+                    )
                     gts.append(org_qd[qid][docid])
                     preds.append(new_qd[qid][docid])
 
         else:
-            holes_tup, gts = qrel_utils.generate_holes(self.qrel, removal_cat=removal_cat)
+            holes_tup, gts = qrel_utils.generate_holes(self.qrel, judge_cat=judge_cat)
             qrel_data = qrel_utils.get_qrels(self.qrel)
             unmatch_dict = {}
             holes_qp = qrel_utils.prepare_query_passage(holes_tup, self.qrel)
@@ -176,6 +179,11 @@ class LLMJudge(ABC):
         if result_file:
             print("-" * 79)
             output = {}
-            output["original"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
-            output[f"modified"] = qrel_utils.fetch_ndcf_score(modified_qrel, result_file)
+            output["original"] = qrel_utils.fetch_ndcg_score(self.qrel, result_file)
+            output[f"modified"] = qrel_utils.fetch_ndcg_score(
+                modified_qrel, result_file
+            )
             print(output)
+
+        if return_results_path:
+            return modified_qrel

@@ -140,7 +140,12 @@ def main():
     load_dotenv()
 
     judge = HGFLLMJudge(
-        args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count, args.device
+        args.qrel,
+        args.model,
+        args.prompt_file,
+        args.prompt_type,
+        args.few_shot_count,
+        args.device,
     )
     judge.evalute_results_with_qrel(
         args.result_file,

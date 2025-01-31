@@ -5,6 +5,7 @@ from typing_extensions import Optional
 from dotenv import load_dotenv
 import openai
 from openai import AzureOpenAI, OpenAI
+from retry import retry
 from tqdm import tqdm
 
 from umbrela.llm_judge import LLMJudge
@@ -41,6 +42,7 @@ class GPTJudge(LLMJudge):
             self.engine = self.model_name
             self.use_azure_ai = False
 
+    @retry(tries=3, delay=0.1)
     def run_gpt(self, prompt, max_new_tokens):
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -64,7 +66,6 @@ class GPTJudge(LLMJudge):
         except openai.BadRequestError as e:
             print(f"Encountered {e} for {prompt}")
             output = ""
-
         return output
 
     def predict_with_llm(
