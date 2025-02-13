@@ -11,6 +11,9 @@ from umbrela.osllm_judge import OSLLMJudge
 from umbrela.utils import common_utils
 from umbrela.utils import qrel_utils, common_utils
 
+# Select relevance categories to be judged.
+JUDGE_CAT = [0, 1, 2, 3]
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -62,6 +65,7 @@ def main():
             regenerate=args.regenerate,
             num_samples=args.num_sample,
             return_results_path=True,
+            judge_cat=JUDGE_CAT,
         )
         results.append(qrel_utils.get_qrels(output_file))
 
@@ -77,9 +81,32 @@ def main():
         model_names[i].strip().split("/")[-1] for i in range(len(model_names))
     )
     path = qrel_utils.get_qrels_file(args.qrel)
-    modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{combined_model_name}_{args.few_shot_count}_{args.num_sample}.txt"
+    modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{combined_model_name}_{''.join(map(str, JUDGE_CAT))}_{args.few_shot_count}_{args.num_sample}.txt"
     common_utils.write_modified_qrel(final_qd, modified_qrel)
+    print("-" * 79)
+    print("-" * 79)
     print(f"Output file: {modified_qrel}")
+    print("-" * 79)
+
+    org_qd = qrel_utils.get_qrels(args.qrel)
+    unmatch_dict = {}
+    gts, preds = [], []
+    for qid in org_qd:
+        for docid in org_qd[qid]:
+            gts.append(int(org_qd[qid][docid]))
+            preds.append(int(final_qd[qid][docid]))
+            curr_res = int(int(org_qd[qid][docid]) == int(final_qd[qid][docid]))
+            if int(org_qd[qid][docid]) not in unmatch_dict:
+                unmatch_dict[int(org_qd[qid][docid])] = [curr_res]
+            else:
+                unmatch_dict[int(org_qd[qid][docid])].append(curr_res)
+
+    common_utils.calculate_kappa(gts, preds)
+    common_utils.draw_confusion_matrix(gts, preds, args.qrel, combined_model_name)
+    for cat in unmatch_dict:
+        print(
+            f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+        )
 
 
 if __name__ == "__main__":

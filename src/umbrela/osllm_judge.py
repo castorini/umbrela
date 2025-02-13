@@ -10,6 +10,9 @@ from transformers.generation import GenerationConfig
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
+# Select relevance categories to be judged.
+JUDGE_CAT = [0, 1, 2, 3]
+
 
 class OSLLMJudge(LLMJudge):
     def __init__(
@@ -97,6 +100,7 @@ def main():
         args.result_file,
         regenerate=args.regenerate,
         num_samples=args.num_sample,
+        judge_cat=JUDGE_CAT,
     )
 
 
