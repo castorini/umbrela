@@ -75,7 +75,10 @@ def main():
             if qid not in final_qd:
                 final_qd[qid] = {}
             votes = [int(res[qid][doc_id]) for res in results]
-            final_qd[qid][doc_id] = Counter(votes).most_common(1)[0][0]
+            most_common = Counter(votes).most_common()
+            max_count = most_common[0][1]
+            best_id = min([id for id, count in most_common if count == max_count])
+            final_qd[qid][doc_id] = best_id
 
     combined_model_name = "-".join(
         model_names[i].strip().split("/")[-1] for i in range(len(model_names))
