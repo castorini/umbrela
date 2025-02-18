@@ -29,8 +29,11 @@ pip install -r requirements.txt
 #### Setting up the model jugde:
 ```python
 from umbrela.gpt_judge import GPTJudge
+from dotenv import load_dotenv
 
-judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing")
+load_dotenv()
+
+judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o")
 ```
 
 #### Passing qrel-passages for evaluations:
@@ -52,7 +55,7 @@ judgments = judge_gpt.judge(request_dict=input_dict)
 
 #### Evaluation for complete judgment:
 ```bash
-python umbrela/gpt_judge.py --qrel dl19-passage --result_file <path/to/result-file> --prompt_type bing --model gpt-4o --few_shot_count 0 --removal_fraction 1
+python umbrela/gpt_judge.py --qrel dl19-passage --result_file <path/to/result-file> --prompt_type bing --model gpt-4o --few_shot_count 0
 ```
 
 ## ✨ References

@@ -12,11 +12,11 @@ from umbrela.utils import qrel_utils, common_utils
 class LLMJudge(ABC):
     def __init__(
         self,
-        qrel,
-        prompt_file,
-        prompt_type,
-        model_name,
-        few_shot_count,
+        qrel: str,
+        model_name: str,
+        prompt_file: str,
+        prompt_type: str,
+        few_shot_count: int,
     ) -> None:
         assert not (
             prompt_file and prompt_type
@@ -88,30 +88,27 @@ class LLMJudge(ABC):
         ax.set_title(self.qrel, fontsize=14)
         ax.set_xlabel("Predicted label", fontsize=14)
         ax.set_ylabel("True label", fontsize=14)
-        plt.savefig(f"conf_matrix/{self.qrel}.png")
+        plt.savefig(f"conf_matrix/{self.qrel}-{os.path.basename(self.model_name)}.png")
 
     def evalute_results_with_qrel(
         self,
         result_file,
-        removal_fraction=1,
-        removal_cat=[0, 1, 2, 3],
+        judge_cat=[0, 1, 2, 3],
         regenerate=False,
         num_samples=1,
+        return_results_path=False,
     ):
         result_dir = f"modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
-        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, removal_cat))}_{int(removal_fraction * 100)}_{self.few_shot_count}_{num_samples}.txt"
+        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, judge_cat))}_{self.few_shot_count}_{num_samples}.txt"
         print(f"Output file: {modified_qrel}")
 
         if os.path.exists(modified_qrel) and not regenerate:
             org_qd = qrel_utils.get_qrels(self.qrel)
             new_qd = qrel_utils.get_qrels(modified_qrel)
 
-            dropped_cat_count = qrel_utils.get_dropped_cat_count(
-                self.qrel, removal_fraction
-            )
             unmatch_dict = {}
             gts, preds = [], []
 
@@ -119,24 +116,14 @@ class LLMJudge(ABC):
                 for docid in org_qd[qid]:
                     if org_qd[qid][docid] not in unmatch_dict:
                         unmatch_dict[org_qd[qid][docid]] = []
-                    if org_qd[qid][docid] != new_qd[qid][docid]:
-                        unmatch_dict[org_qd[qid][docid]].append(0)
-                        gts.append(org_qd[qid][docid])
-                        preds.append(new_qd[qid][docid])
-                    else:
-                        unmatch_dict[org_qd[qid][docid]].append(1)
-                        if dropped_cat_count[str(org_qd[qid][docid])] > 0:
-                            dropped_cat_count[str(org_qd[qid][docid])] = (
-                                dropped_cat_count[str(org_qd[qid][docid])] - 1
-                            )
-                        else:
-                            gts.append(org_qd[qid][docid])
-                            preds.append(new_qd[qid][docid])
+                    unmatch_dict[org_qd[qid][docid]].append(
+                        int(org_qd[qid][docid] == new_qd[qid][docid])
+                    )
+                    gts.append(org_qd[qid][docid])
+                    preds.append(new_qd[qid][docid])
 
         else:
-            holes_tup, gts = qrel_utils.generate_holes(
-                self.qrel, removal_fraction, removal_cat
-            )
+            holes_tup, gts = qrel_utils.generate_holes(self.qrel, judge_cat=judge_cat)
             qrel_data = qrel_utils.get_qrels(self.qrel)
             unmatch_dict = {}
             holes_qp = qrel_utils.prepare_query_passage(holes_tup, self.qrel)
@@ -192,8 +179,11 @@ class LLMJudge(ABC):
         if result_file:
             print("-" * 79)
             output = {}
-            output["original"] = qrel_utils.fetch_ndcf_score(self.qrel, result_file)
-            output[f"modified_{int(removal_fraction * 100)}"] = (
-                qrel_utils.fetch_ndcf_score(modified_qrel, result_file)
+            output["original"] = qrel_utils.fetch_ndcg_score(self.qrel, result_file)
+            output[f"modified"] = qrel_utils.fetch_ndcg_score(
+                modified_qrel, result_file
             )
             print(output)
+
+        if return_results_path:
+            return modified_qrel

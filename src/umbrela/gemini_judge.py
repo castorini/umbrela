@@ -3,8 +3,8 @@ import os
 from typing_extensions import Optional
 
 from dotenv import load_dotenv
-import openai
-from openai import AzureOpenAI, OpenAI
+import vertexai
+from vertexai.generative_models import GenerativeModel, GenerationConfig
 from retry import retry
 from tqdm import tqdm
 
@@ -15,7 +15,7 @@ from umbrela.utils import common_utils
 JUDGE_CAT = [0, 1, 2, 3]
 
 
-class GPTJudge(LLMJudge):
+class GeminiJudge(LLMJudge):
     def __init__(
         self,
         qrel: str,
@@ -25,49 +25,25 @@ class GPTJudge(LLMJudge):
         few_shot_count: int = 0,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
-        self.create_openai_client()
+        self.create_gemini_client()
 
-    def create_openai_client(self):
-        api_key = os.environ["OPEN_AI_API_KEY"]
-        api_version = os.environ["AZURE_OPENAI_API_VERSION"]
-        azure_endpoint = os.environ["AZURE_OPENAI_API_BASE"]
-
-        if all([api_key, azure_endpoint, api_version]):
-            self.client = AzureOpenAI(
-                api_key=api_key,
-                api_version=api_version,
-                azure_endpoint=azure_endpoint,
-            )
-            self.use_azure_ai = True
-            self.engine = os.environ["DEPLOYMENT_NAME"]
-        else:
-            self.client = OpenAI(api_key=api_key)
-            self.engine = self.model_name
-            self.use_azure_ai = False
+    def create_gemini_client(self):
+        vertexai.init(
+            project=os.environ["GCLOUD_PROJECT"], location=os.environ["GCLOUD_REGION"]
+        )
+        self.client = GenerativeModel(self.model_name)
 
     @retry(tries=3, delay=0.1)
-    def run_gpt(self, prompt, max_new_tokens):
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt},
-        ]
+    def run_gemini(self, prompt, max_new_tokens):
         try:
-            response = self.client.chat.completions.create(
-                model=self.engine,
-                messages=messages,
-                max_tokens=max_new_tokens,
-                temperature=0,
-                top_p=1,
-                frequency_penalty=0.5,
-                presence_penalty=0,
+            response = self.client.generate_content(
+                prompt,
+                generation_config=GenerationConfig(
+                    max_output_tokens=max_new_tokens,
+                ),
             )
-            output = (
-                response.choices[0].message.content.lower()
-                if response.choices[0].message.content
-                else ""
-            )
-        except openai.BadRequestError as e:
-            print(f"Encountered {e} for {prompt}")
+            output = response.text
+        except:
             output = ""
         return output
 
@@ -86,7 +62,7 @@ class GPTJudge(LLMJudge):
         )
 
         outputs = [
-            self.run_gpt(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
+            self.run_gemini(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
         ]
         return outputs
 
@@ -115,7 +91,7 @@ def main():
     args = parser.parse_args()
     load_dotenv()
 
-    judge = GPTJudge(
+    judge = GeminiJudge(
         args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
     )
     judge.evalute_results_with_qrel(

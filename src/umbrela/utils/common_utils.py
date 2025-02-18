@@ -1,4 +1,8 @@
 import re
+import os
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
 
 
 def preprocess_request_dict(request_dict):
@@ -33,7 +37,7 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
         r'"overall"\s*[:-=]?\s*(0|1|2|3)',
         r'"overall score"\s*[:-=]?\s*(0|1|2|3)',
         r'"final score"\s*[:-=]?\s*(0|1|2|3)',
-        r'final score\s*[:-=]?\s*(0|1|2|3)',
+        r"final score\s*[:-=]?\s*(0|1|2|3)",
         r"final score is (0|1|2|3)",
         r'"final_score"\s*[:-=]?\s*(0|1|2|3)',
         r'"score"\s*[:-=]?\s*(0|1|2|3)',
@@ -53,7 +57,9 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
     ]
     for pattern in patterns:
         matched = None
-        for m in re.finditer(pattern, response, re.IGNORECASE | re.MULTILINE | re.DOTALL):
+        for m in re.finditer(
+            pattern, response, re.IGNORECASE | re.MULTILINE | re.DOTALL
+        ):
             matched = m
 
         if matched:
@@ -88,7 +94,32 @@ def write_modified_qrel(modified_data, qrel_path):
         for qid in modified_data:
             for doc_id in modified_data[qid]:
                 result = str(modified_data[qid][doc_id]) + "\n"
-                encoded = " ".join(
-                    [str(qid), "Q0", str(doc_id), str(result)]
-                ).encode("utf-8")
+                encoded = " ".join([str(qid), "Q0", str(doc_id), str(result)]).encode(
+                    "utf-8"
+                )
                 f_out.write(encoded)
+
+
+def calculate_kappa(gts, preds):
+    print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
+    print("-" * 79)
+    gts_bin = [1 if int(x) > 1 else 0 for x in gts]
+    preds_bin = [1 if int(x) > 1 else 0 for x in preds]
+    print(f"Binarized Kohen kappa overall: {cohen_kappa_score(gts_bin, preds_bin)}")
+    print("-" * 79)
+
+
+def draw_confusion_matrix(gts, preds, qrel, model_name):
+    conf_mat = confusion_matrix(gts, preds)
+    print(conf_mat)
+
+    os.makedirs("conf_matrix", exist_ok=True)
+    disp = ConfusionMatrixDisplay(confusion_matrix=conf_mat)
+    fig, ax = plt.subplots()
+    disp.plot(ax=ax, cmap="GnBu")
+    for text in disp.text_.ravel():
+        text.set_fontsize(16)
+    ax.set_title(qrel, fontsize=14)
+    ax.set_xlabel("Predicted label", fontsize=14)
+    ax.set_ylabel("True label", fontsize=14)
+    plt.savefig(f"conf_matrix/{qrel}-{os.path.basename(model_name)}.png")

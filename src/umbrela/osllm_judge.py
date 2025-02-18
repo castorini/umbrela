@@ -1,6 +1,7 @@
 import argparse
 from typing_extensions import Optional
 
+from dotenv import load_dotenv
 from fastchat.model import load_model
 import torch
 from tqdm import tqdm
@@ -8,6 +9,9 @@ from transformers.generation import GenerationConfig
 
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
+
+# Select relevance categories to be judged.
+JUDGE_CAT = [0, 1, 2, 3]
 
 
 class OSLLMJudge(LLMJudge):
@@ -21,7 +25,7 @@ class OSLLMJudge(LLMJudge):
         device: str = "cuda",
         num_gpus: int = 1,
     ) -> None:
-        super().__init__(qrel, prompt_file, prompt_type, model_name, few_shot_count)
+        super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
         self._device = device
         if self._device == "cuda":
             assert torch.cuda.is_available()
@@ -83,21 +87,20 @@ def main():
     parser.add_argument(
         "--few_shot_count", type=int, help="Few shot count for each category."
     )
-    parser.add_argument("--removal_fraction", type=float, default=1)
     parser.add_argument("--num_sample", type=int, default=1)
     parser.add_argument("--regenerate", action="store_true")
 
     args = parser.parse_args()
+    load_dotenv()
 
     judge = OSLLMJudge(
         args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
     )
     judge.evalute_results_with_qrel(
         args.result_file,
-        removal_fraction=args.removal_fraction,
         regenerate=args.regenerate,
         num_samples=args.num_sample,
-        removal_cat=[0, 1, 2, 3],
+        judge_cat=JUDGE_CAT,
     )
 
 
