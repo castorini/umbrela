@@ -6,7 +6,11 @@ import re
 import platform
 import subprocess
 
-from pyserini.index.lucene import LuceneIndexReader
+try:
+    from pyserini.index.lucene import LuceneIndexReader
+except ImportError:
+    print("\nPyserini version is likely too old, check and ensure pyserini >= 0.1.2.0\n")
+    
 from pyserini.search import get_qrels_file, get_topics
 
 
