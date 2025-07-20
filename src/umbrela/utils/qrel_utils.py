@@ -6,7 +6,11 @@ import re
 import platform
 import subprocess
 
-from pyserini.index.lucene import IndexReader
+try:
+    from pyserini.index.lucene import LuceneIndexReader
+except ImportError:
+    print("\nPyserini version is likely too old, check and ensure pyserini >= 0.1.2.0\n")
+    
 from pyserini.search import get_qrels_file, get_topics
 
 
@@ -134,7 +138,7 @@ def get_qrels(qrel_info):
 def get_index_reader(qrel):
     # Index reader
     if qrel in ["dl19-passage", "dl20-passage"]:
-        index_reader = IndexReader.from_prebuilt_index("msmarco-v1-passage")
+        index_reader = LuceneIndexReader.from_prebuilt_index("msmarco-v1-passage")
     else:
         index_reader = None
     return index_reader
