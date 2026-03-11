@@ -20,11 +20,48 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 keywords = ["LLM", "evaluation", "information retrieval"]
-dynamic = ["dependencies"]
 requires-python = ">= 3.10"
+dependencies = [
+    "matplotlib>=3.8.4",
+    "pyserini==1.2.0",
+    "python-dotenv>=1.0.1",
+    "scikit-learn>=1.4.2",
+    "tqdm>=4.66.2",
+    "typing-extensions>=4.11.0",
+]
 
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+[project.optional-dependencies]
+cloud = [
+    "google-cloud-aiplatform>=1.50.0",
+    "openai>=1.24.1",
+    "retry>=0.9.2",
+]
+hf = [
+    "datasets>=2.19.0",
+    "torch>=2.2.2",
+    "transformers>=4.40.1",
+]
+fastchat = [
+    "fschat>=0.2.36",
+    "torch>=2.2.2",
+    "transformers>=4.40.1",
+]
+all = [
+    "datasets>=2.19.0",
+    "fschat>=0.2.36",
+    "google-cloud-aiplatform>=1.50.0",
+    "openai>=1.24.1",
+    "retry>=0.9.2",
+    "torch>=2.2.2",
+    "transformers>=4.40.1",
+]
+
+[project.scripts]
+umbrela-ensemble = "umbrela.ensemble_judge:main"
+umbrela-gemini = "umbrela.gemini_judge:main"
+umbrela-gpt = "umbrela.gpt_judge:main"
+umbrela-hf = "umbrela.hgfllm_judge:main"
+umbrela-os = "umbrela.osllm_judge:main"
 
 [tool.setuptools.package-data]
 umbrela = ["prompts/*.txt"]
@@ -51,9 +88,5 @@ push = false
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = [
-    "umbrela",
-    "umbrela.utils",
-    "prompts"
-]
+include = ["umbrela*"]
 namespaces = false

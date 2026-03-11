@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import pkg_resources
+from importlib import resources
 import os
 import statistics
 import time
@@ -29,8 +29,8 @@ class LLMJudge(ABC):
             if prompt_type not in ["bing", "basic"]:
                 raise ValueError(f"Invalid prompt_type: {prompt_type}.")
             prompt_mode_str = "fewshot" if few_shot_count > 0 else "zeroshot"
-            prompt_file = pkg_resources.resource_filename(
-                "umbrela", f"prompts/qrel_{prompt_mode_str}_{prompt_type}.txt"
+            prompt_file = resources.files("umbrela").joinpath(
+                f"prompts/qrel_{prompt_mode_str}_{prompt_type}.txt"
             )
             if not os.path.exists(prompt_file):
                 raise ValueError(f"Prompt file doesn't exist.")

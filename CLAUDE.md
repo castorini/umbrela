@@ -7,14 +7,17 @@ umBRELA is a Python package for LLM-based relevance assessment of query-passage 
 ## Setup
 
 ```bash
-conda create -n umbrela python=3.10
-conda activate umbrela
-conda install -c conda-forge openjdk=21 maven -y   # Required for pyserini/Lucene index access
-pip install -r requirements.txt
-pip install -e .
+uv python install 3.12
+uv sync --extra cloud
 ```
 
-Copy `.env` with credentials before running (see Environment Variables below).
+Additional setup notes:
+
+- The repository pins `uv` to Python 3.12 via `.python-version`.
+- Install Java 21 once on the host. `pyserini` relies on Lucene and JVM access for passage lookup and qrel utilities.
+- Install Maven if your local `pyserini` workflow requires it.
+- Use `uv sync --extra hf`, `uv sync --extra fastchat`, or `uv sync --extra all` when you need local-model backends instead of only cloud APIs.
+- Copy `.env` with credentials before running (see Environment Variables below).
 
 ## Environment Variables
 
@@ -28,19 +31,19 @@ Each judge module is also a CLI entry point:
 
 ```bash
 # GPT (OpenAI/Azure)
-python -m umbrela.gpt_judge --qrel dl19-passage --result_file <path> --prompt_type bing --model gpt-4o --few_shot_count 0
+uv run umbrela-gpt --qrel dl19-passage --result_file <path> --prompt_type bing --model gpt-4o --few_shot_count 0
 
 # Gemini (Vertex AI)
-python -m umbrela.gemini_judge --qrel dl19-passage --result_file <path> --prompt_type bing --model gemini-1.0-pro --few_shot_count 0
+uv run umbrela-gemini --qrel dl19-passage --result_file <path> --prompt_type bing --model gemini-1.0-pro --few_shot_count 0
 
 # Open-source via HuggingFace
-python -m umbrela.hgfllm_judge --qrel dl19-passage --result_file <path> --prompt_type bing --model meta-llama/Llama-2-7b --few_shot_count 0 --device cuda
+uv run umbrela-hf --qrel dl19-passage --result_file <path> --prompt_type bing --model meta-llama/Llama-2-7b --few_shot_count 0 --device cuda
 
 # Open-source via FastChat
-python -m umbrela.osllm_judge --qrel dl19-passage --result_file <path> --prompt_type bing --model lmsys/vicuna-7b-v1.5 --few_shot_count 0
+uv run umbrela-os --qrel dl19-passage --result_file <path> --prompt_type bing --model lmsys/vicuna-7b-v1.5 --few_shot_count 0
 
 # Ensemble (majority vote across multiple judges)
-python -m umbrela.ensemble_judge --qrel dl19-passage --result_file <path> --prompt_type bing \
+uv run umbrela-ensemble --qrel dl19-passage --result_file <path> --prompt_type bing \
   --llm_judges "GPTJudge,GeminiJudge" --model_names "gpt-4o,gemini-1.0-pro" --few_shot_count 0
 ```
 
