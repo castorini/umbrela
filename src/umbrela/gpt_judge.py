@@ -23,27 +23,36 @@ class GPTJudge(LLMJudge):
         prompt_file: Optional[str] = None,
         prompt_type: Optional[str] = "bing",
         few_shot_count: int = 0,
+        use_azure_openai: bool = False,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
-        self.create_openai_client()
+        self.create_openai_client(use_azure_openai=use_azure_openai)
 
-    def create_openai_client(self):
-        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
+    def create_openai_client(self, use_azure_openai: bool = False):
+        openai_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
+        azure_api_key = os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
 
-        if all([api_key, azure_endpoint, api_version]):
+        if use_azure_openai:
+            if not all([azure_api_key, azure_endpoint, api_version]):
+                raise ValueError(
+                    "Azure OpenAI requested but one or more required environment "
+                    "variables are missing: `AZURE_OPENAI_API_BASE`, "
+                    "`AZURE_OPENAI_API_VERSION`, and "
+                    "`AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY` as fallback)."
+                )
             self.client = AzureOpenAI(
-                api_key=api_key,
+                api_key=azure_api_key,
                 api_version=api_version,
                 azure_endpoint=azure_endpoint,
             )
             self.use_azure_ai = True
             self.engine = os.environ["DEPLOYMENT_NAME"]
         else:
-            if api_key is None:
+            if openai_api_key is None:
                 raise KeyError("OPENAI_API_KEY")
-            self.client = OpenAI(api_key=api_key)
+            self.client = OpenAI(api_key=openai_api_key)
             self.engine = self.model_name
             self.use_azure_ai = False
 
@@ -113,12 +122,22 @@ def main():
     )
     parser.add_argument("--num_sample", type=int, default=1)
     parser.add_argument("--regenerate", action="store_true")
+    parser.add_argument(
+        "--use_azure_openai",
+        action="store_true",
+        help="Use Azure OpenAI instead of the default public OpenAI API.",
+    )
 
     args = parser.parse_args()
     load_dotenv()
 
     judge = GPTJudge(
-        args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
+        args.qrel,
+        args.model,
+        args.prompt_file,
+        args.prompt_type,
+        args.few_shot_count,
+        use_azure_openai=args.use_azure_openai,
     )
     judge.evalute_results_with_qrel(
         args.result_file,

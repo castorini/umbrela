@@ -6,7 +6,7 @@ import time
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
-from umbrela.utils import qrel_utils, common_utils
+from umbrela.utils import common_utils
 
 
 class LLMJudge(ABC):
@@ -39,8 +39,11 @@ class LLMJudge(ABC):
             print(
                 "Warning!! Prompt file expects input fields namely: (examples, query, passage)."
             )
+            prompt_file = os.fspath(prompt_file)
         self.model_name = model_name
         if few_shot_count > 0:
+            from umbrela.utils import qrel_utils
+
             self.prompt_examples = qrel_utils.generate_examples_prompt(
                 qrel, few_shot_count
             )
@@ -98,6 +101,8 @@ class LLMJudge(ABC):
         num_samples=1,
         return_results_path=False,
     ):
+        from umbrela.utils import qrel_utils
+
         result_dir = f"modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 

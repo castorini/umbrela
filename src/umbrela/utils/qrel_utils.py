@@ -1,17 +1,33 @@
 from functools import lru_cache
 import json
 import os
+import platform
 import random
 import re
-import platform
 import subprocess
 
 try:
     from pyserini.index.lucene import LuceneIndexReader
-except ImportError:
-    print("\nPyserini version is likely too old, check and ensure pyserini >= 0.1.2.0\n")
-    
-from pyserini.search import get_qrels_file, get_topics
+    from pyserini.search import get_qrels_file, get_topics
+    _PYSERINI_IMPORT_ERROR = None
+except Exception as exc:
+    LuceneIndexReader = None
+    get_qrels_file = None
+    get_topics = None
+    _PYSERINI_IMPORT_ERROR = exc
+
+
+def _require_pyserini(feature: str, needs_java: bool = False) -> None:
+    if get_qrels_file is None or get_topics is None:
+        message = (
+            f"{feature} requires the optional `pyserini` dependency."
+            " Install Umbrela with `pyserini` support to use qrel-backed workflows."
+        )
+        if needs_java:
+            message += " Java 21 is also required for Lucene-backed passage access."
+        if _PYSERINI_IMPORT_ERROR is not None:
+            message += f" Original import error: {_PYSERINI_IMPORT_ERROR}"
+        raise ImportError(message) from _PYSERINI_IMPORT_ERROR
 
 
 def get_catwise_data(qrel_data, few_shot_count):
@@ -54,6 +70,8 @@ def examples_prompt(few_shot_examples, query_mappings, qrel, qrel_data):
 
 
 def get_query_mappings(qrel):
+    _require_pyserini("Built-in qrel topic lookup")
+
     # Query mappings
     topic_mapping = {
         "dl19-passage": "dl19-passage",
@@ -104,6 +122,7 @@ def generate_holes(qrel, judge_cat=[0, 1, 2, 3], exception_qid=[]):
 
 def get_qrel_path(qrel_info):
     if not os.path.exists(qrel_info):
+        _require_pyserini("Built-in qrel lookup")
         return get_qrels_file(qrel_info)
     return qrel_info
 
@@ -138,6 +157,7 @@ def get_qrels(qrel_info):
 def get_index_reader(qrel):
     # Index reader
     if qrel in ["dl19-passage", "dl20-passage"]:
+        _require_pyserini("MS MARCO v1 passage lookup", needs_java=True)
         index_reader = LuceneIndexReader.from_prebuilt_index("msmarco-v1-passage")
     else:
         index_reader = None
@@ -180,6 +200,7 @@ def prepare_query_passage(qid_docid_list, qrel):
 
 def fetch_ndcg_score(qrel_path, result_path):
     # -remove-unjudged
+    _require_pyserini("nDCG evaluation")
     cmd = f"python -m pyserini.eval.trec_eval -c -l 2 -m ndcg_cut.10 {qrel_path} {result_path}"
     cmd = cmd.split(" ")
     shell = platform.system() == "Windows"

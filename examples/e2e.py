@@ -73,6 +73,7 @@ def build_judge(args):
             prompt_file=args.prompt_file,
             prompt_type=prompt_type,
             few_shot_count=args.few_shot_count,
+            use_azure_openai=args.use_azure_openai,
         )
 
     if args.judge == "gemini":
@@ -183,6 +184,11 @@ def main() -> None:
         "--print_prompt",
         action="store_true",
         help="Print the first generated prompt after the run completes.",
+    )
+    parser.add_argument(
+        "--use_azure_openai",
+        action="store_true",
+        help="Use Azure OpenAI instead of the default public OpenAI API.",
     )
     args = parser.parse_args()
 

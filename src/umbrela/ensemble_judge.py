@@ -9,13 +9,14 @@ from umbrela.gpt_judge import GPTJudge
 from umbrela.hgfllm_judge import HGFLLMJudge
 from umbrela.osllm_judge import OSLLMJudge
 from umbrela.utils import common_utils
-from umbrela.utils import qrel_utils, common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
 
 
 def main():
+    from umbrela.utils import qrel_utils
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--qrel", type=str, help="qrels file", required=True)
     parser.add_argument("--result_file", type=str, help="retriever result file")
