@@ -7,17 +7,18 @@ umBRELA is a Python package for LLM-based relevance assessment of query-passage 
 ## Setup
 
 ```bash
-uv python install 3.12
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 uv sync --extra cloud
 ```
 
 Additional setup notes:
 
-- The repository pins `uv` to Python 3.12 via `.python-version`.
 - Install Java 21 once on the host. `pyserini` relies on Lucene and JVM access for passage lookup and qrel utilities.
-- Install Maven if your local `pyserini` workflow requires it.
+- `uv sync` creates and manages the repo-local virtual environment at `.venv`.
+- The repository already pins the interpreter via `.python-version`, so `uv` will use that version automatically and download it if needed.
 - Use `uv sync --extra hf`, `uv sync --extra fastchat`, or `uv sync --extra all` when you need local-model backends instead of only cloud APIs.
-- Copy `.env` with credentials before running (see Environment Variables below).
+- Add a repo-local `.env` with only the variables needed for the backend you plan to run (see Environment Variables below).
 
 ## Environment Variables
 

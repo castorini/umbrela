@@ -6,18 +6,18 @@
 
 ### Prerequisites
 
-- Install `uv`.
 - Install Java 21 once on the machine. `pyserini` uses Lucene and the JVM for qrel and passage access.
-- Install Maven if your local `pyserini` workflow expects it.
 
 ### Quick start
 
 ```bash
-uv python install 3.12
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create/update this repository's .venv and install the cloud backends
 uv sync --extra cloud
 ```
 
-`uv` will pick Python 3.12 automatically because the repository now includes `.python-version`.
+`uv sync` creates a repo-local virtual environment at `.venv`. The repository already pins the interpreter with `.python-version`, so `uv` will use that version automatically and download it if needed.
 
 Install only the backends you need:
 
@@ -35,7 +35,25 @@ uv sync --extra fastchat
 uv sync --extra all
 ```
 
-Add a `.env` file with the credentials for the backends you plan to run.
+Add a repo-local `.env` file with only the credentials for the backend you plan to run:
+
+```dotenv
+# GPTJudge via Azure OpenAI
+OPEN_AI_API_KEY=...
+AZURE_OPENAI_API_VERSION=...
+AZURE_OPENAI_API_BASE=...
+DEPLOYMENT_NAME=...
+
+# GeminiJudge via Vertex AI
+GCLOUD_PROJECT=...
+GCLOUD_REGION=...
+
+# HGFLLMJudge via Hugging Face
+HF_TOKEN=...
+HF_CACHE_DIR=...
+```
+
+Only set the variables required by the judge you are using.
 
 ### CLI usage
 
