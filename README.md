@@ -95,6 +95,16 @@ Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22
 
 Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and `basic`. Set `--few_shot_count 0` for zero-shot labeling and values greater than `0` for few-shot labeling.
 
+### Quick end-to-end smoke test
+
+For a small in-memory request that mirrors the package API, run:
+
+```bash
+uv run python examples/e2e.py --judge gpt --model gpt-4o
+```
+
+You can swap `--judge` to `gemini`, `hf`, or `os` and pass the matching model identifier plus any backend-specific environment variables from the setup section.
+
 ### Programmatic usage
 
 ```python
