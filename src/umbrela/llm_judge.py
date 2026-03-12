@@ -24,6 +24,7 @@ class LLMJudge(ABC):
 
         self.qrel = qrel
         self.few_shot_count = few_shot_count
+        using_custom_prompt = bool(prompt_file)
 
         if prompt_type:
             if prompt_type not in ["bing", "basic"]:
@@ -36,10 +37,12 @@ class LLMJudge(ABC):
                 raise ValueError(f"Prompt file doesn't exist.")
 
         if prompt_file:
-            print(
-                "Warning!! Prompt file expects input fields namely: (examples, query, passage)."
-            )
             prompt_file = os.fspath(prompt_file)
+            if using_custom_prompt:
+                print(
+                    "Custom prompt file must provide the fields "
+                    "`{examples}`, `{query}`, and `{passage}`."
+                )
         self.model_name = model_name
         if few_shot_count > 0:
             from umbrela.utils import qrel_utils

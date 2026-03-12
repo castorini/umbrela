@@ -113,7 +113,7 @@ def build_judge(args):
     )
 
 
-def print_results(judgments: list[dict]) -> None:
+def print_results(judgments: list[dict], show_raw: bool = False) -> None:
     """Render compact per-document results for manual smoke tests."""
     print(f"Received {len(judgments)} judgments:")
     for rank, judgment in enumerate(judgments, start=1):
@@ -124,7 +124,8 @@ def print_results(judgments: list[dict]) -> None:
             f"{rank}. label={label} parsed={parsed} "
             f"passage={passage}"
         )
-        print(f"   raw={judgment['prediction']!r}")
+        if show_raw:
+            print(f"   raw={judgment['prediction']!r}")
 
 
 def main() -> None:
@@ -186,6 +187,11 @@ def main() -> None:
         help="Print the first generated prompt after the run completes.",
     )
     parser.add_argument(
+        "--print_raw",
+        action="store_true",
+        help="Print raw model responses for each passage.",
+    )
+    parser.add_argument(
         "--use_azure_openai",
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
@@ -208,7 +214,7 @@ def main() -> None:
         print(judgments[0]["prompt"])
 
     print()
-    print_results(judgments)
+    print_results(judgments, show_raw=args.print_raw)
 
 
 if __name__ == "__main__":
