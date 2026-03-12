@@ -16,6 +16,8 @@ The package is built for information retrieval evaluation workflows: you can run
 
 `umbrela` uses [`uv`](https://docs.astral.sh/uv/) for Python environment management, dependency resolution, and command execution.
 
+It is built on Python 3.11 (other versions might work, but YMMV).
+
 ### Prerequisites
 
 - Install Java 21 once on the machine. `pyserini` uses Lucene and the JVM for qrel and passage access.
@@ -29,7 +31,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra cloud
 ```
 
-`uv sync` creates a repo-local virtual environment at `.venv`. The repository already pins the interpreter with `.python-version`, so `uv` will use that version automatically and download it if needed.
+`uv sync` creates a repo-local virtual environment at `.venv`. The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will use that version automatically and download it if needed.
 
 Install only the backends you need:
 
