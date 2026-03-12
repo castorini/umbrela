@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 keywords = ["LLM", "evaluation", "information retrieval"]
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
     "matplotlib>=3.8.4",
     "pyserini==1.2.0",
