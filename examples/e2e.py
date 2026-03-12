@@ -2,7 +2,7 @@
 """Quick end-to-end example for judging a small query-passage set."""
 
 import argparse
-from textwrap import shorten
+from textwrap import fill
 
 from dotenv import load_dotenv
 
@@ -113,19 +113,40 @@ def build_judge(args):
     )
 
 
-def print_results(judgments: list[dict], show_raw: bool = False) -> None:
-    """Render compact per-document results for manual smoke tests."""
+def print_results(
+    request: dict,
+    judgments: list[dict],
+    show_raw: bool = False,
+    passage_width: int = 100,
+) -> None:
+    """Render readable per-document results for manual smoke tests."""
+    query = request["query"]["text"]
+    qid = request["query"].get("qid", "unknown")
+
+    print("Query")
+    print(f"  qid: {qid}")
+    print(f"  text: {query}")
+    print()
     print(f"Received {len(judgments)} judgments:")
-    for rank, judgment in enumerate(judgments, start=1):
+    for rank, (candidate, judgment) in enumerate(
+        zip(request["candidates"], judgments), start=1
+    ):
         label = judgment["judgment"]
         parsed = "yes" if judgment["result_status"] else "no"
-        passage = shorten(judgment["passage"], width=110, placeholder="...")
-        print(
-            f"{rank}. label={label} parsed={parsed} "
-            f"passage={passage}"
-        )
+        docid = candidate.get("docid", "unknown")
+        score = candidate.get("score")
+        passage = fill(judgment["passage"], width=passage_width)
+
+        print(f"{rank}. label={label} parsed={parsed}")
+        print(f"   docid: {docid}")
+        if score is not None:
+            print(f"   score: {score:.4f}")
+        print("   passage:")
+        for line in passage.splitlines():
+            print(f"     {line}")
         if show_raw:
             print(f"   raw={judgment['prediction']!r}")
+        print()
 
 
 def main() -> None:
@@ -196,6 +217,12 @@ def main() -> None:
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
     )
+    parser.add_argument(
+        "--passage_width",
+        type=int,
+        default=100,
+        help="Wrap width for displayed passages.",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -214,7 +241,12 @@ def main() -> None:
         print(judgments[0]["prompt"])
 
     print()
-    print_results(judgments, show_raw=args.print_raw)
+    print_results(
+        request,
+        judgments,
+        show_raw=args.print_raw,
+        passage_width=args.passage_width,
+    )
 
 
 if __name__ == "__main__":
