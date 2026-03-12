@@ -23,7 +23,7 @@ Additional setup notes:
 
 ## Environment Variables
 
-- `OPEN_AI_API_KEY`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_BASE`, `DEPLOYMENT_NAME` — for `GPTJudge` (Azure preferred; falls back to plain OpenAI if Azure vars absent)
+- `OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_BASE`, `DEPLOYMENT_NAME` — for `GPTJudge` (Azure preferred; falls back to plain OpenAI if Azure vars absent)
 - `GCLOUD_PROJECT`, `GCLOUD_REGION` — for `GeminiJudge` (uses Vertex AI)
 - `HF_TOKEN`, `HF_CACHE_DIR` — for `HGFLLMJudge`
 

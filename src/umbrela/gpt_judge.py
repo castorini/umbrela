@@ -28,9 +28,9 @@ class GPTJudge(LLMJudge):
         self.create_openai_client()
 
     def create_openai_client(self):
-        api_key = os.environ["OPEN_AI_API_KEY"]
-        api_version = os.environ["AZURE_OPENAI_API_VERSION"]
-        azure_endpoint = os.environ["AZURE_OPENAI_API_BASE"]
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
 
         if all([api_key, azure_endpoint, api_version]):
             self.client = AzureOpenAI(
@@ -41,6 +41,8 @@ class GPTJudge(LLMJudge):
             self.use_azure_ai = True
             self.engine = os.environ["DEPLOYMENT_NAME"]
         else:
+            if api_key is None:
+                raise KeyError("OPENAI_API_KEY")
             self.client = OpenAI(api_key=api_key)
             self.engine = self.model_name
             self.use_azure_ai = False
