@@ -21,6 +21,7 @@ dist/
 .env.*
 !.env.example
 .venv/
+uv.lock
 venv/
 env/
 ENV/
@@ -39,4 +40,3 @@ results/
 # Local data and model caches
 data/
 .cache/
-
