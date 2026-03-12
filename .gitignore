@@ -1,0 +1,42 @@
+.DS_Store
+*~
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local environments and secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+ENV/
+
+# Editors and notebooks
+.idea/
+.vscode/
+.ipynb_checkpoints/
+
+# Generated evaluation artifacts
+conf_matrix/
+modified_qrels/
+prompts_and_responses/
+results/
+
+# Local data and model caches
+data/
+.cache/
+

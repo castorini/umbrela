@@ -1,8 +1,20 @@
 # umBRELA
 
-## Instructions
+umBRELA is an open-source reproduction of the Bing RELevance Assessor for query-passage relevance labeling. It uses large language models to assign 4-level relevance judgments (`0` to `3`) to query-document pairs and supports both cloud-hosted and open-weight judges.
 
-`umbrela` now uses [`uv`](https://docs.astral.sh/uv/) for Python environment management, dependency resolution, and command execution.
+The package is built for information retrieval evaluation workflows: you can run a single judge, compare multiple judge backends, or generate modified qrels and downstream metrics from an existing retrieval run.
+
+## What it includes
+
+- `GPTJudge` for OpenAI or Azure OpenAI models
+- `GeminiJudge` for Vertex AI Gemini models
+- `HGFLLMJudge` for local Hugging Face transformer models
+- `OSLLMJudge` for FastChat-compatible open models
+- `EnsembleJudge` for majority-vote labeling across multiple judges
+
+## Setup
+
+`umbrela` uses [`uv`](https://docs.astral.sh/uv/) for Python environment management, dependency resolution, and command execution.
 
 ### Prerequisites
 
@@ -34,6 +46,8 @@ uv sync --extra fastchat
 # Everything
 uv sync --extra all
 ```
+
+### Environment variables
 
 Add a repo-local `.env` file with only the credentials for the backend you plan to run:
 
@@ -77,9 +91,12 @@ uv run umbrela-ensemble --qrel dl19-passage --result_file <path> --prompt_type b
   --llm_judges "GPTJudge,GeminiJudge" --model_names "gpt-4o,gemini-1.0-pro" --few_shot_count 0
 ```
 
-### Judgment generation snippet
+Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 
-#### Setting up the model judge:
+Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and `basic`. Set `--few_shot_count 0` for zero-shot labeling and values greater than `0` for few-shot labeling.
+
+### Programmatic usage
+
 ```python
 from umbrela.gpt_judge import GPTJudge
 from dotenv import load_dotenv
@@ -89,7 +106,6 @@ load_dotenv()
 judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o")
 ```
 
-#### Passing qrel-passages for evaluations:
 ```python
 input_dict = {
     "query": {"text": "how long is life cycle of flea", "qid": "264014"},
@@ -106,7 +122,16 @@ input_dict = {
 judgments = judge_gpt.judge(request_dict=input_dict)
 ```
 
-## ✨ References
+## Evaluation outputs
+
+When you run end-to-end evaluation, umBRELA writes generated artifacts into repo-local directories:
+
+- `modified_qrels/` for LLM-generated qrels
+- `conf_matrix/` for confusion-matrix visualizations
+
+For MS MARCO v2 passage lookups, `scripts/download_msmarco.sh` downloads the required corpus files into `data/`.
+
+## Reference
 
 If you use umBRELA, please cite the following paper:
 
@@ -124,6 +149,6 @@ If you use umBRELA, please cite the following paper:
 <!-- {% endraw %} -->
 
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 This research is supported in part by the Natural Sciences and Engineering Research Council (NSERC) of Canada.
