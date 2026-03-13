@@ -53,6 +53,14 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             )
         ],
     },
+    "view": {
+        "summary": "Inspect Umbrela artifact files with a human-readable preview.",
+        "examples": [
+            "umbrela view judgments.jsonl",
+            "umbrela view judgments.jsonl --records 1 --show-prompts",
+        ],
+        "supported_types": ["judge-output"],
+    },
 }
 
 
@@ -134,6 +142,10 @@ SCHEMAS: dict[str, dict[str, Any]] = {
     "evaluate-output": {
         "type": "object",
         "required": ["artifacts", "metrics"],
+    },
+    "view-summary": {
+        "type": "object",
+        "required": ["path", "artifact_type", "summary", "sampled_records"],
     },
     "cli-envelope": {
         "type": "object",

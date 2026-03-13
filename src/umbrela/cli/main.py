@@ -18,12 +18,27 @@ from .io import read_jsonl, write_jsonl
 from .normalize import normalize_direct_judge_input
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .responses import CommandResponse
+from .view import (
+    ViewError,
+    build_view_summary,
+    detect_artifact_type,
+    load_records,
+    render_view_summary,
+)
 
 INVALID_ARGS_EXIT_CODE = 2
 MISSING_RESOURCE_EXIT_CODE = 4
 VALIDATION_EXIT_CODE = 5
 RUNTIME_EXIT_CODE = 6
-KNOWN_COMMANDS = ("judge", "evaluate", "describe", "schema", "doctor", "validate")
+KNOWN_COMMANDS = (
+    "judge",
+    "evaluate",
+    "view",
+    "describe",
+    "schema",
+    "doctor",
+    "validate",
+)
 TOP_LEVEL_EXAMPLES = (
     (
         "umbrela judge --backend gpt --model gpt-4o "
@@ -269,6 +284,16 @@ def build_parser() -> CLIArgumentParser:
     doctor_parser = subparsers.add_parser("doctor")
     doctor_parser.add_argument("--output", choices=["text", "json"], default="text")
 
+    view_parser = subparsers.add_parser("view")
+    view_parser.add_argument("path", type=str)
+    view_parser.add_argument("--type", dest="artifact_type", type=str)
+    view_parser.add_argument("--records", type=int, default=3)
+    view_parser.add_argument(
+        "--color", choices=["auto", "always", "never"], default="auto"
+    )
+    view_parser.add_argument("--show-prompts", action="store_true")
+    view_parser.add_argument("--output", choices=["text", "json"], default="text")
+
     validate_parser = subparsers.add_parser("validate")
     validate_parser.add_argument("target", choices=["judge", "evaluate"])
     validate_inputs = validate_parser.add_mutually_exclusive_group()
@@ -443,6 +468,43 @@ def _run_doctor_command() -> CommandResponse:
     return CommandResponse(command="doctor", mode="inspect", metrics=doctor_report())
 
 
+def _run_view_command(args: argparse.Namespace) -> CommandResponse:
+    _ensure_file_exists(args.path, command="view", field_name="path")
+    try:
+        records = load_records(args.path)
+        artifact_type = detect_artifact_type(records, args.artifact_type)
+    except ViewError as error:
+        raise CLIError(
+            str(error),
+            exit_code=VALIDATION_EXIT_CODE,
+            status="validation_error",
+            error_code="invalid_view_input",
+            command="view",
+            details={"path": args.path, "artifact_type": args.artifact_type},
+        ) from error
+
+    view_summary = build_view_summary(
+        args.path,
+        records,
+        artifact_type,
+        record_limit=args.records,
+        show_prompts=args.show_prompts,
+    )
+    return CommandResponse(
+        command="view",
+        mode="inspect",
+        inputs={"path": args.path},
+        resolved={
+            "artifact_type": artifact_type,
+            "records": args.records,
+            "show_prompts": args.show_prompts,
+            "color": args.color,
+        },
+        artifacts=[make_data_artifact("view-summary", view_summary)],
+        metrics=view_summary["summary"],
+    )
+
+
 def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
     response = CommandResponse(command="validate", mode="inspect")
     if args.target == "judge":
@@ -480,6 +542,8 @@ def _run_command(args: argparse.Namespace) -> CommandResponse:
         return _run_judge_command(args)
     if args.command == "evaluate":
         return _run_evaluate_command(args)
+    if args.command == "view":
+        return _run_view_command(args)
     if args.command == "describe":
         return _run_describe_command(args)
     if args.command == "schema":
@@ -544,6 +608,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(json.dumps(response.artifacts[0]["data"], indent=2) + "\n")
     elif args.command == "doctor":
         sys.stdout.write(json.dumps(response.metrics, indent=2) + "\n")
+    elif args.command == "view":
+        sys.stdout.write(
+            render_view_summary(
+                cast(dict[str, Any], response.artifacts[0]["data"]),
+                color=args.color,
+            )
+            + "\n"
+        )
     elif args.command == "validate":
         sys.stdout.write(json.dumps(response.validation, indent=2) + "\n")
     else:
