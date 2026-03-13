@@ -119,6 +119,49 @@ def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> No
     assert output["artifacts"][0]["data"][0]["reasoning"] == "reasoning content"
 
 
+def test_direct_judge_accepts_minimal_reasoning_effort(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict
+        assert args.reasoning_effort == "minimal"
+        return [
+            {
+                "model": "gpt-5.4",
+                "query": "q",
+                "passage": "p",
+                "prompt": "prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-5.4",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--reasoning-effort",
+            "minimal",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["artifacts"][0]["data"][0]["judgment"] == 2
+
+
 def test_direct_judge_via_stdin(monkeypatch: Any, capsys: Any) -> None:
     def fake_run_judge_direct(
         request_dict: dict[str, Any], args: Any

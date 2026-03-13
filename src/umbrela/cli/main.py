@@ -385,7 +385,7 @@ def build_parser() -> CLIArgumentParser:
     )
     judge_parser.add_argument(
         "--reasoning-effort",
-        choices=["low", "medium", "high"],
+        choices=["none", "minimal", "low", "medium", "high", "xhigh"],
         help="Reasoning effort for supported GPT-family models.",
     )
     judge_parser.add_argument(
@@ -526,7 +526,7 @@ def build_parser() -> CLIArgumentParser:
     )
     evaluate_parser.add_argument(
         "--reasoning-effort",
-        choices=["low", "medium", "high"],
+        choices=["none", "minimal", "low", "medium", "high", "xhigh"],
         help="Reasoning effort for supported GPT-family models.",
     )
     evaluate_parser.add_argument(
