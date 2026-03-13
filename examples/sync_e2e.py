@@ -2,6 +2,7 @@
 """Synchronous compatibility example for Umbrela judges."""
 
 import argparse
+from typing import Any
 from textwrap import fill
 
 from dotenv import load_dotenv
@@ -69,7 +70,7 @@ def uses_reasoning_style_model(model_name: str) -> bool:
     )
 
 
-def build_judge(args):
+def build_judge(args: argparse.Namespace) -> Any:
     """Construct the requested judge backend with only the needed imports."""
     prompt_type = None if args.prompt_file else args.prompt_type
 

@@ -1,13 +1,9 @@
 import argparse
-from collections import Counter
 import os
+from collections import Counter
 
 from dotenv import load_dotenv
 
-from umbrela.gemini_judge import GeminiJudge
-from umbrela.gpt_judge import GPTJudge
-from umbrela.hgfllm_judge import HGFLLMJudge
-from umbrela.osllm_judge import OSLLMJudge
 from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
@@ -35,24 +31,23 @@ def main():
     args = parser.parse_args()
     load_dotenv()
 
-    result_dir = f"modified_qrels"
+    result_dir = "modified_qrels"
     os.makedirs(result_dir, exist_ok=True)
 
     llm_judges = args.llm_judges.split(",")
     model_names = args.model_names.split(",")
 
-    assert len(llm_judges) == len(
-        model_names
-    ), "incomplete list of LLM judges or model names"
+    assert len(llm_judges) == len(model_names), (
+        "incomplete list of LLM judges or model names"
+    )
 
     results = []
     for i in range(len(llm_judges)):
         llm_judge = llm_judges[i]
         llm_judge = llm_judge.strip()
         llm_judges[i] = llm_judge
-        try:
-            cls = globals().get(llm_judge)
-        except:
+        cls = globals().get(llm_judge)
+        if cls is None:
             raise ValueError(f"Invalid value for llm_judge: {llm_judge}")
         judge = cls(
             args.qrel,

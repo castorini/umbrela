@@ -9,6 +9,7 @@ import subprocess
 try:
     from pyserini.index.lucene import LuceneIndexReader
     from pyserini.search import get_qrels_file, get_topics
+
     _PYSERINI_IMPORT_ERROR = None
 except Exception as exc:
     LuceneIndexReader = None
@@ -41,9 +42,9 @@ def get_catwise_data(qrel_data, few_shot_count):
                     req_tuple_list.append((qid, doc_id))
         print(f"No. of judgments for category {cat}: {len(req_tuple_list)}")
 
-        assert (
-            len(req_tuple_list) >= few_shot_count
-        ), f"Count of judgments available for category {cat} is lesser than {few_shot_count}."
+        assert len(req_tuple_list) >= few_shot_count, (
+            f"Count of judgments available for category {cat} is lesser than {few_shot_count}."
+        )
 
         if len(req_tuple_list):
             samples_for_examples = random.sample(req_tuple_list, few_shot_count)

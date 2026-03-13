@@ -66,6 +66,15 @@ umbrela-gpt = "umbrela.gpt_judge:main"
 umbrela-hf = "umbrela.hgfllm_judge:main"
 umbrela-os = "umbrela.osllm_judge:main"
 
+[dependency-groups]
+dev = [
+    "mypy>=1.11.2",
+    "pre-commit>=3.8.0",
+    "pytest>=8.4.2",
+    "ruff>=0.12.0",
+    "types-tqdm",
+]
+
 [tool.setuptools.package-data]
 umbrela = ["prompts/*.txt"]
 
@@ -93,3 +102,37 @@ push = false
 where = ["src"]
 include = ["umbrela*"]
 namespaces = false
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+ignore_missing_imports = true
+cache_dir = ".mypy_cache"
+incremental = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.test_gpt_judge_async",
+    "umbrela.ensemble_judge",
+    "umbrela.gemini_judge",
+    "umbrela.gpt_judge",
+    "umbrela.hgfllm_judge",
+    "umbrela.llm_judge",
+    "umbrela.osllm_judge",
+    "umbrela.utils.common_utils",
+    "umbrela.utils.qrel_utils",
+]
+ignore_errors = true

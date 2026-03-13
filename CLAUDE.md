@@ -18,12 +18,13 @@ Additional setup notes:
   - `uv python install 3.11`
   - `uv venv --python 3.11`
   - `source .venv/bin/activate`
-  - `uv sync --extra cloud`
+  - `uv sync --group dev`
 - `uv venv` and `uv sync` create and manage the repo-local virtual environment at `.venv`.
 - The published package supports Python 3.11 and newer via `pyproject.toml`.
 - The repository already pins the interpreter via `.python-version`, so `uv` will use that version automatically and download it if needed.
-- Use `uv sync --extra hf`, `uv sync --extra fastchat`, or `uv sync --extra all` when you need local-model backends instead of only cloud APIs.
+- Use `uv sync --group dev --extra cloud`, `uv sync --group dev --extra hf`, `uv sync --group dev --extra fastchat`, or `uv sync --group dev --extra all` when you need contributor tooling plus a specific backend stack.
 - If you prefer not to activate the virtual environment, run commands through `uv run`.
+- Run `uv run pre-commit run --all-files` before committing local changes when you want to execute the full contributor quality gate manually.
 - Add a repo-local `.env` with only the variables needed for the backend you plan to run (see Environment Variables below).
 
 ## Environment Variables

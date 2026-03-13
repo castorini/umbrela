@@ -3,10 +3,9 @@ import asyncio
 from importlib import resources
 import os
 import statistics
-import time
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, cohen_kappa_score, confusion_matrix
 from umbrela.utils import common_utils
 
 
@@ -19,9 +18,9 @@ class LLMJudge(ABC):
         prompt_type: str,
         few_shot_count: int,
     ) -> None:
-        assert not (
-            prompt_file and prompt_type
-        ), "Both prompt_file and prompt_type passed. Only one mode must be selected!!"
+        assert not (prompt_file and prompt_type), (
+            "Both prompt_file and prompt_type passed. Only one mode must be selected!!"
+        )
 
         self.qrel = qrel
         self.few_shot_count = few_shot_count
@@ -35,7 +34,7 @@ class LLMJudge(ABC):
                 f"prompts/qrel_{prompt_mode_str}_{prompt_type}.txt"
             )
             if not os.path.exists(prompt_file):
-                raise ValueError(f"Prompt file doesn't exist.")
+                raise ValueError("Prompt file doesn't exist.")
 
         if prompt_file:
             prompt_file = os.fspath(prompt_file)
@@ -55,7 +54,8 @@ class LLMJudge(ABC):
             self.prompt_examples = ""
             if "fewshot" in prompt_file:
                 print(
-                    f"Warning!! default fewshot prompt file being used for few_shot_count = 0"
+                    "Warning!! default fewshot prompt file being used for "
+                    "few_shot_count = 0"
                 )
         else:
             raise ValueError(f"Invalid value for few_shot_count: {few_shot_count}")
@@ -140,7 +140,7 @@ class LLMJudge(ABC):
     ):
         from umbrela.utils import qrel_utils
 
-        result_dir = f"modified_qrels"
+        result_dir = "modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
@@ -222,9 +222,7 @@ class LLMJudge(ABC):
             print("-" * 79)
             output = {}
             output["original"] = qrel_utils.fetch_ndcg_score(self.qrel, result_file)
-            output[f"modified"] = qrel_utils.fetch_ndcg_score(
-                modified_qrel, result_file
-            )
+            output["modified"] = qrel_utils.fetch_ndcg_score(modified_qrel, result_file)
             print(output)
 
         if return_results_path:

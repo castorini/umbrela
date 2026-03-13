@@ -46,7 +46,7 @@ cd umbrela
 uv python install 3.11
 uv venv --python 3.11
 source .venv/bin/activate
-uv sync --extra cloud
+uv sync --group dev
 ```
 
 If you prefer not to activate the virtual environment, run commands through `uv run`, for example:
@@ -54,6 +54,7 @@ If you prefer not to activate the virtual environment, run commands through `uv 
 ```bash
 uv run python examples/e2e.py --help
 uv run umbrela-gpt --help
+uv run pre-commit run --all-files
 ```
 
 The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will also select that version automatically when possible.
@@ -62,16 +63,16 @@ Install only the backends you need:
 
 ```bash
 # GPT + Gemini
-uv sync --extra cloud
+uv sync --group dev --extra cloud
 
 # Hugging Face local models
-uv sync --extra hf
+uv sync --group dev --extra hf
 
 # FastChat local models
-uv sync --extra fastchat
+uv sync --group dev --extra fastchat
 
 # Everything
-uv sync --extra all
+uv sync --group dev --extra all
 ```
 
 ### Environment variables

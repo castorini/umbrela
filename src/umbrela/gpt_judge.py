@@ -87,7 +87,9 @@ class GPTJudge(LLMJudge):
             self.engine = self.model_name
             self.use_azure_ai = False
 
-    def _normalize_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
+    def _normalize_messages(
+        self, messages: list[dict[str, str]]
+    ) -> list[dict[str, str]]:
         if (
             "o1" in self.model_name
             or "o3" in self.model_name

@@ -1,12 +1,12 @@
 import argparse
 import os
-from typing_extensions import Optional
 
-from dotenv import load_dotenv
 import vertexai
-from vertexai.generative_models import GenerativeModel, GenerationConfig
+from dotenv import load_dotenv
 from retry import retry
 from tqdm import tqdm
+from typing_extensions import Optional
+from vertexai.generative_models import GenerationConfig, GenerativeModel
 
 from umbrela.llm_judge import LLMJudge
 
@@ -42,7 +42,7 @@ class GeminiJudge(LLMJudge):
                 ),
             )
             output = response.text
-        except:
+        except Exception:
             output = ""
         return output
 

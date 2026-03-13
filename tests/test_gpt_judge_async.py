@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 from umbrela.gpt_judge import GPTJudge
@@ -28,11 +29,16 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         self.addCleanup(lambda: os.unlink(self.prompt_file.name))
 
     def make_judge(self) -> GPTJudge:
-        def fake_create_openai_client(self, use_azure_openai: bool = False) -> None:
-            self.async_client = SimpleNamespace(
-                responses=SimpleNamespace(create=AsyncMock()),
-                chat=SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
+        def fake_create_openai_client(
+            self: GPTJudge, use_azure_openai: bool = False
+        ) -> None:
+            self.async_client = cast(
+                Any,
+                SimpleNamespace(
+                    responses=SimpleNamespace(create=AsyncMock()),
+                    chat=SimpleNamespace(
+                        completions=SimpleNamespace(create=AsyncMock())
+                    ),
                 ),
             )
             self.engine = self.model_name
@@ -51,7 +57,9 @@ class GPTJudgeAsyncTests(unittest.TestCase):
     def test_async_judge_preserves_input_order(self) -> None:
         judge = self.make_judge()
 
-        async def fake_run_gpt(prompt: str, max_new_tokens: int) -> tuple[str, str | None]:
+        async def fake_run_gpt(
+            prompt: str, max_new_tokens: int
+        ) -> tuple[str, str | None]:
             if "first passage" in prompt:
                 await asyncio.sleep(0.03)
                 return "2", "first reasoning"
@@ -64,11 +72,14 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         judge.run_gpt = fake_run_gpt  # type: ignore[method-assign]
         judgments = asyncio.run(judge.async_judge(SAMPLE_REQUEST))
 
-        self.assertEqual([item["passage"] for item in judgments], [
-            "first passage",
-            "second passage",
-            "third passage",
-        ])
+        self.assertEqual(
+            [item["passage"] for item in judgments],
+            [
+                "first passage",
+                "second passage",
+                "third passage",
+            ],
+        )
         self.assertEqual([item["judgment"] for item in judgments], [2, 1, 3])
         self.assertEqual(
             [item["reasoning"] for item in judgments],
@@ -80,12 +91,13 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         judge = self.make_judge()
 
         async def fake_async_predict_with_llm(
-            request_dict, max_new_tokens: int, prepocess: bool
-        ):
+            request_dict: dict[str, Any], max_new_tokens: int, prepocess: bool
+        ) -> list[str]:
+            del max_new_tokens
             judge.prepare_request_inputs(request_dict, prepocess)
             return ["0", "1", "2"]
 
-        judge.async_predict_with_llm = fake_async_predict_with_llm  # type: ignore[method-assign]
+        judge.async_predict_with_llm = fake_async_predict_with_llm  # type: ignore[assignment,method-assign]
         judgments = judge.judge(SAMPLE_REQUEST)
 
         self.assertEqual([item["judgment"] for item in judgments], [0, 1, 2])
@@ -181,11 +193,13 @@ class GPTJudgeAsyncTests(unittest.TestCase):
                 )
             ],
         )
-        judge.async_client.responses.create.return_value = response
+        responses_create = cast(AsyncMock, judge.async_client.responses.create)
+        chat_create = cast(AsyncMock, judge.async_client.chat.completions.create)
+        responses_create.return_value = response
 
         output, reasoning = asyncio.run(judge.run_gpt("prompt", 77))
 
-        judge.async_client.responses.create.assert_awaited_once_with(
+        responses_create.assert_awaited_once_with(
             model="gpt-5.4",
             input=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -195,7 +209,7 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             timeout=30,
             reasoning={"effort": "medium", "summary": "auto"},
         )
-        judge.async_client.chat.completions.create.assert_not_called()
+        chat_create.assert_not_called()
         self.assertEqual(output, "3")
         self.assertEqual(reasoning, "reason summary")
 
@@ -206,11 +220,12 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         judge.reasoning_effort = "medium"
 
         response = SimpleNamespace(output_text="3", output=[])
-        judge.async_client.responses.create.return_value = response
+        responses_create = cast(AsyncMock, judge.async_client.responses.create)
+        responses_create.return_value = response
 
         asyncio.run(judge.run_gpt("prompt", 100))
 
-        judge.async_client.responses.create.assert_awaited_once_with(
+        responses_create.assert_awaited_once_with(
             model="gpt-5.4",
             input=[
                 {"role": "system", "content": "You are a helpful assistant."},
