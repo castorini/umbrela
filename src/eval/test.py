@@ -1,5 +1,8 @@
 """A test snippet for using the package."""
-from umbrela.osllm_judge import OSLLMJudge
+
+import asyncio
+
+from umbrela.gpt_judge import GPTJudge
 
 request_dict = {
     "query": {"text": "how long is life cycle of flea", "qid": "264014"},
@@ -63,5 +66,5 @@ request_dict = {
     ],
 }
 
-judge_osllm = OSLLMJudge("dl19-passage", "lmsys/vicuna-7b-v1.5")
-results = judge_osllm.judge(request_dict)
+judge_gpt = GPTJudge("dl19-passage", "gpt-4o")
+results = asyncio.run(judge_gpt.async_judge(request_dict))

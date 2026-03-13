@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""Async-first GPT end-to-end example for Umbrela."""
+"""Synchronous compatibility example for Umbrela judges."""
 
 import argparse
-import asyncio
 from textwrap import fill
 
 from dotenv import load_dotenv
-
-from umbrela.gpt_judge import GPTJudge
 
 
 def create_sample_request() -> dict:
@@ -63,6 +60,60 @@ def create_sample_request() -> dict:
     }
 
 
+def build_judge(args):
+    """Construct the requested judge backend with only the needed imports."""
+    prompt_type = None if args.prompt_file else args.prompt_type
+
+    if args.judge == "gpt":
+        from umbrela.gpt_judge import GPTJudge
+
+        return GPTJudge(
+            qrel=args.qrel,
+            model_name=args.model,
+            prompt_file=args.prompt_file,
+            prompt_type=prompt_type,
+            few_shot_count=args.few_shot_count,
+            use_azure_openai=args.use_azure_openai,
+            max_concurrency=args.max_concurrency,
+        )
+
+    if args.judge == "gemini":
+        from umbrela.gemini_judge import GeminiJudge
+
+        return GeminiJudge(
+            qrel=args.qrel,
+            model_name=args.model,
+            prompt_file=args.prompt_file,
+            prompt_type=prompt_type,
+            few_shot_count=args.few_shot_count,
+        )
+
+    if args.judge == "hf":
+        from umbrela.hgfllm_judge import HGFLLMJudge
+
+        return HGFLLMJudge(
+            qrel=args.qrel,
+            model_name=args.model,
+            prompt_file=args.prompt_file,
+            prompt_type=prompt_type,
+            few_shot_count=args.few_shot_count,
+            device=args.device,
+            num_gpus=args.num_gpus,
+        )
+
+    from umbrela.osllm_judge import OSLLMJudge
+
+    return OSLLMJudge(
+        qrel=args.qrel,
+        model_name=args.model,
+        prompt_file=args.prompt_file,
+        prompt_type=prompt_type,
+        few_shot_count=args.few_shot_count,
+        device=args.device,
+        num_gpus=args.num_gpus,
+    )
+
+
 def print_results(
     request: dict,
     judgments: list[dict],
@@ -99,14 +150,20 @@ def print_results(
         print()
 
 
-async def main() -> None:
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the default async GPT end-to-end example for Umbrela."
+        description="Run the synchronous Umbrela end-to-end example."
+    )
+    parser.add_argument(
+        "--judge",
+        choices=["gpt", "gemini", "hf", "os"],
+        default="gpt",
+        help="Judge backend to run.",
     )
     parser.add_argument(
         "--model",
         default="gpt-4o",
-        help="OpenAI or Azure OpenAI model name to use.",
+        help="Model name for the selected backend.",
     )
     parser.add_argument(
         "--qrel",
@@ -139,7 +196,18 @@ async def main() -> None:
         "--max_concurrency",
         type=int,
         default=8,
-        help="Maximum number of concurrent OpenAI requests.",
+        help="Maximum number of concurrent OpenAI requests when --judge gpt is used.",
+    )
+    parser.add_argument(
+        "--device",
+        default="cuda",
+        help="Device for local HF/FastChat backends.",
+    )
+    parser.add_argument(
+        "--num_gpus",
+        type=int,
+        default=1,
+        help="GPU count for local HF/FastChat backends.",
     )
     parser.add_argument(
         "--print_prompt",
@@ -166,23 +234,14 @@ async def main() -> None:
 
     load_dotenv()
     request = create_sample_request()
-    prompt_type = None if args.prompt_file else args.prompt_type
 
     print(
-        f"Running Umbrela async e2e example with model={args.model} "
-        f"prompt_type={args.prompt_type} few_shot_count={args.few_shot_count} "
-        f"max_concurrency={args.max_concurrency}"
+        f"Running Umbrela sync e2e example with judge={args.judge} "
+        f"model={args.model} prompt_type={args.prompt_type} "
+        f"few_shot_count={args.few_shot_count}"
     )
-    judge = GPTJudge(
-        qrel=args.qrel,
-        model_name=args.model,
-        prompt_file=args.prompt_file,
-        prompt_type=prompt_type,
-        few_shot_count=args.few_shot_count,
-        use_azure_openai=args.use_azure_openai,
-        max_concurrency=args.max_concurrency,
-    )
-    judgments = await judge.async_judge(request, max_new_tokens=args.max_new_tokens)
+    judge = build_judge(args)
+    judgments = judge.judge(request, max_new_tokens=args.max_new_tokens)
 
     if args.print_prompt and judgments:
         print("\nFirst prompt:\n")
@@ -198,4 +257,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
