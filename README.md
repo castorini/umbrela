@@ -72,6 +72,9 @@ uv sync --group dev --extra hf
 # FastChat local models
 uv sync --group dev --extra fastchat
 
+# Qrel-backed evaluation workflows (requires Java 21)
+uv sync --group dev --extra pyserini
+
 # Everything
 uv sync --group dev --extra all
 ```
