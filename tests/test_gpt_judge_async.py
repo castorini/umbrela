@@ -2,7 +2,8 @@ import asyncio
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from umbrela.gpt_judge import GPTJudge
 from umbrela.utils import common_utils
@@ -28,7 +29,12 @@ class GPTJudgeAsyncTests(unittest.TestCase):
 
     def make_judge(self) -> GPTJudge:
         def fake_create_openai_client(self, use_azure_openai: bool = False) -> None:
-            self.async_client = object()
+            self.async_client = SimpleNamespace(
+                responses=SimpleNamespace(create=AsyncMock()),
+                chat=SimpleNamespace(
+                    completions=SimpleNamespace(create=AsyncMock())
+                ),
+            )
             self.engine = self.model_name
             self.use_azure_ai = use_azure_openai
 
@@ -131,6 +137,39 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             common_utils.extract_reasoning_content({"reasoning_content": "scratch"}),
             "scratch",
         )
+
+    def test_reasoning_effort_uses_responses_api(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "gpt-5.4"
+        judge.engine = "gpt-5.4"
+        judge.reasoning_effort = "medium"
+
+        response = SimpleNamespace(
+            output_text="3",
+            output=[
+                SimpleNamespace(
+                    type="reasoning",
+                    summary=[SimpleNamespace(text="reason summary")],
+                )
+            ],
+        )
+        judge.async_client.responses.create.return_value = response
+
+        output, reasoning = asyncio.run(judge.run_gpt("prompt", 77))
+
+        judge.async_client.responses.create.assert_awaited_once_with(
+            model="gpt-5.4",
+            input=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "prompt"},
+            ],
+            max_output_tokens=77,
+            timeout=30,
+            reasoning={"effort": "medium", "summary": "auto"},
+        )
+        judge.async_client.chat.completions.create.assert_not_called()
+        self.assertEqual(output, "3")
+        self.assertEqual(reasoning, "reason summary")
 
 
 if __name__ == "__main__":

@@ -60,6 +60,15 @@ def create_sample_request() -> dict:
     }
 
 
+def uses_reasoning_style_model(model_name: str) -> bool:
+    return (
+        "o1" in model_name
+        or "o3" in model_name
+        or "o4" in model_name
+        or "gpt-5" in model_name
+    )
+
+
 def build_judge(args):
     """Construct the requested judge backend with only the needed imports."""
     prompt_type = None if args.prompt_file else args.prompt_type
@@ -75,6 +84,7 @@ def build_judge(args):
             few_shot_count=args.few_shot_count,
             use_azure_openai=args.use_azure_openai,
             max_concurrency=args.max_concurrency,
+            reasoning_effort=args.reasoning_effort,
         )
 
     if args.judge == "gemini":
@@ -230,6 +240,13 @@ def main() -> None:
         help="Print model reasoning content when the provider returns it.",
     )
     parser.add_argument(
+        "--reasoning_effort",
+        type=str,
+        default=None,
+        choices=["low", "medium", "high"],
+        help="Reasoning effort for OpenAI reasoning models such as gpt-5 and o-series models.",
+    )
+    parser.add_argument(
         "--use_azure_openai",
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
@@ -241,6 +258,18 @@ def main() -> None:
         help="Wrap width for displayed passages.",
     )
     args = parser.parse_args()
+
+    if (
+        args.print_reasoning
+        and args.reasoning_effort is None
+        and args.judge == "gpt"
+        and uses_reasoning_style_model(args.model)
+    ):
+        args.reasoning_effort = "medium"
+        print(
+            "No reasoning effort specified; using reasoning_effort=medium "
+            "for this reasoning-capable model."
+        )
 
     load_dotenv()
     request = create_sample_request()

@@ -24,10 +24,20 @@ class GPTJudge(LLMJudge):
         few_shot_count: int = 0,
         use_azure_openai: bool = False,
         max_concurrency: int = 8,
+        reasoning_effort: Optional[str] = None,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
         self.max_concurrency = max_concurrency
+        self.reasoning_effort = reasoning_effort
         self.create_openai_client(use_azure_openai=use_azure_openai)
+
+    def _uses_reasoning_style_api(self) -> bool:
+        return (
+            "o1" in self.model_name
+            or "o3" in self.model_name
+            or "o4" in self.model_name
+            or "gpt-5" in self.model_name
+        )
 
     def create_openai_client(self, use_azure_openai: bool = False):
         try:
@@ -84,12 +94,7 @@ class GPTJudge(LLMJudge):
         self, messages: list[dict[str, str]], max_new_tokens: int
     ) -> dict[str, Any]:
         normalized_messages = self._normalize_messages(messages)
-        uses_reasoning_style_api = (
-            "o1" in self.model_name
-            or "o3" in self.model_name
-            or "o4" in self.model_name
-            or "gpt-5" in self.model_name
-        )
+        uses_reasoning_style_api = self._uses_reasoning_style_api()
         temperature = 0.0
         if uses_reasoning_style_api:
             temperature = 1.0
@@ -109,6 +114,53 @@ class GPTJudge(LLMJudge):
             completion_params["presence_penalty"] = 0
         return completion_params
 
+    def _build_responses_params(
+        self, messages: list[dict[str, str]], max_new_tokens: int
+    ) -> dict[str, Any]:
+        return {
+            "model": self.engine,
+            "input": self._normalize_messages(messages),
+            "max_output_tokens": max_new_tokens,
+            "timeout": 30,
+            "reasoning": {
+                "effort": self.reasoning_effort,
+                "summary": "auto",
+            },
+        }
+
+    def _extract_responses_text_and_reasoning(
+        self, response: Any
+    ) -> tuple[str, str | None]:
+        text = ""
+        if hasattr(response, "output_text") and response.output_text:
+            text = str(response.output_text)
+        else:
+            for item in getattr(response, "output", []):
+                if getattr(item, "type", None) == "message":
+                    for content in getattr(item, "content", []):
+                        if getattr(content, "type", None) == "output_text":
+                            text = getattr(content, "text", "") or text
+
+        reasoning = None
+        for item in getattr(response, "output", []):
+            if getattr(item, "type", None) == "reasoning":
+                summaries = getattr(item, "summary", None)
+                if summaries:
+                    reasoning = "\n".join(
+                        summary.text
+                        for summary in summaries
+                        if hasattr(summary, "text") and summary.text
+                    )
+        return text.lower(), reasoning
+
+    async def _run_gpt_with_responses_api(
+        self, messages: list[dict[str, str]], max_new_tokens: int
+    ) -> tuple[str, str | None]:
+        response = await self.async_client.responses.create(
+            **self._build_responses_params(messages, max_new_tokens)
+        )
+        return self._extract_responses_text_and_reasoning(response)
+
     async def run_gpt(self, prompt, max_new_tokens):
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -116,6 +168,13 @@ class GPTJudge(LLMJudge):
         ]
         for attempt in range(3):
             try:
+                if (
+                    self.reasoning_effort is not None
+                    and self._uses_reasoning_style_api()
+                ):
+                    return await self._run_gpt_with_responses_api(
+                        messages, max_new_tokens
+                    )
                 response = await self.async_client.chat.completions.create(
                     **self._build_completion_params(messages, max_new_tokens)
                 )
@@ -204,6 +263,13 @@ def main():
         default=8,
         help="Maximum number of concurrent OpenAI requests.",
     )
+    parser.add_argument(
+        "--reasoning_effort",
+        type=str,
+        default=None,
+        choices=["low", "medium", "high"],
+        help="Reasoning effort for OpenAI reasoning models such as gpt-5 and o-series models.",
+    )
 
     args = parser.parse_args()
     load_dotenv()
@@ -216,6 +282,7 @@ def main():
         args.few_shot_count,
         use_azure_openai=args.use_azure_openai,
         max_concurrency=args.max_concurrency,
+        reasoning_effort=args.reasoning_effort,
     )
     judge.evalute_results_with_qrel(
         args.result_file,

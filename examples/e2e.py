@@ -63,6 +63,15 @@ def create_sample_request() -> dict:
     }
 
 
+def uses_reasoning_style_model(model_name: str) -> bool:
+    return (
+        "o1" in model_name
+        or "o3" in model_name
+        or "o4" in model_name
+        or "gpt-5" in model_name
+    )
+
+
 def print_results(
     request: dict,
     judgments: list[dict],
@@ -162,6 +171,13 @@ async def main() -> None:
         help="Print model reasoning content when the provider returns it.",
     )
     parser.add_argument(
+        "--reasoning_effort",
+        type=str,
+        default=None,
+        choices=["low", "medium", "high"],
+        help="Reasoning effort for OpenAI reasoning models such as gpt-5 and o-series models.",
+    )
+    parser.add_argument(
         "--use_azure_openai",
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
@@ -177,6 +193,17 @@ async def main() -> None:
     load_dotenv()
     request = create_sample_request()
     prompt_type = None if args.prompt_file else args.prompt_type
+    reasoning_effort = args.reasoning_effort
+    if (
+        args.print_reasoning
+        and reasoning_effort is None
+        and uses_reasoning_style_model(args.model)
+    ):
+        reasoning_effort = "medium"
+        print(
+            "No reasoning effort specified; using reasoning_effort=medium "
+            "for this reasoning-capable model."
+        )
 
     print(
         f"Running Umbrela async e2e example with model={args.model} "
@@ -191,6 +218,7 @@ async def main() -> None:
         few_shot_count=args.few_shot_count,
         use_azure_openai=args.use_azure_openai,
         max_concurrency=args.max_concurrency,
+        reasoning_effort=reasoning_effort,
     )
     judgments = await judge.async_judge(request, max_new_tokens=args.max_new_tokens)
 
