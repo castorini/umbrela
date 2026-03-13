@@ -9,6 +9,7 @@ activated, the development fallback is `uv run umbrela ...`.
 
 - `umbrela judge`: Run a selected backend on direct JSON input or batch JSONL.
 - `umbrela evaluate`: Run qrel-backed evaluation and emit artifact metadata.
+- `umbrela view`: Render an existing Umbrela artifact file for humans.
 - `umbrela describe`: Inspect command metadata and examples.
 - `umbrela schema`: Print JSON schemas for direct input, batch input, outputs,
   and the shared CLI envelope.
@@ -63,6 +64,13 @@ umbrela evaluate \
   --qrel dl19-passage \
   --result-file run.trec \
   --output json
+```
+
+View an existing judgment artifact:
+
+```bash
+umbrela view judgments.jsonl
+umbrela view judgments.jsonl --records 1 --show-prompts
 ```
 
 ## Introspection Examples

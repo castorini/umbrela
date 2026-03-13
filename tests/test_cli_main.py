@@ -234,13 +234,137 @@ def test_batch_judge_missing_input_returns_json_error(capsys: Any) -> None:
     assert output["errors"][0]["code"] == "missing_input"
 
 
+def test_view_judgments_returns_json_summary(tmp_path: Path, capsys: Any) -> None:
+    path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "model": "gpt-4o",
+                "query": "Q" * 180,
+                "passage": "P" * 120,
+                "prompt": "prompt text " * 30,
+                "prediction": "##final score: 2",
+                "reasoning": None,
+                "judgment": 2,
+                "result_status": 1,
+            },
+            {
+                "model": "gpt-4o",
+                "query": "second query",
+                "passage": "second passage",
+                "prompt": "hidden prompt",
+                "prediction": "bad output",
+                "reasoning": None,
+                "judgment": 0,
+                "result_status": 0,
+            },
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--records", "1", "--output", "json"])
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "view"
+    assert output["artifacts"][0]["data"]["artifact_type"] == "judge-output"
+    assert output["artifacts"][0]["data"]["summary"]["record_count"] == 2
+    assert output["artifacts"][0]["data"]["summary"]["score_histogram"] == {
+        "0": 1,
+        "1": 0,
+        "2": 1,
+        "3": 0,
+    }
+    assert len(output["artifacts"][0]["data"]["sampled_records"]) == 1
+    assert "prompt" not in output["artifacts"][0]["data"]["sampled_records"][0]
+    assert output["artifacts"][0]["data"]["sampled_records"][0]["query"].endswith("...")
+
+
+def test_view_judgments_text_hides_prompts_by_default(
+    tmp_path: Path, capsys: Any
+) -> None:
+    path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "model": "gpt-4o",
+                "query": "query",
+                "passage": "passage",
+                "prompt": "very secret prompt",
+                "prediction": "##final score: 3",
+                "reasoning": None,
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--color", "never"])
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "Umbrela View" in stdout
+    assert "scores: 0=0, 1=0, 2=0, 3=1" in stdout
+    assert "prompt:" not in stdout
+
+
+def test_view_judgments_text_can_show_prompts(tmp_path: Path, capsys: Any) -> None:
+    path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "model": "gpt-4o",
+                "query": "query",
+                "passage": "passage",
+                "prompt": "very secret prompt",
+                "prediction": "##final score: 3",
+                "reasoning": None,
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--show-prompts", "--color", "never"])
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "prompt: very secret prompt" in stdout
+
+
+def test_view_empty_file_returns_json_error(tmp_path: Path, capsys: Any) -> None:
+    path = tmp_path / "empty.jsonl"
+    path.write_text("", encoding="utf-8")
+
+    exit_code = main(["view", str(path), "--output", "json"])
+
+    assert exit_code == 5
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "view"
+    assert output["errors"][0]["code"] == "invalid_view_input"
+
+
+def test_view_malformed_file_returns_json_error(tmp_path: Path, capsys: Any) -> None:
+    path = tmp_path / "broken.jsonl"
+    path.write_text("{not-json}\n", encoding="utf-8")
+
+    exit_code = main(["view", str(path), "--output", "json"])
+
+    assert exit_code == 5
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "view"
+    assert output["errors"][0]["code"] == "invalid_view_input"
+
+
 def test_missing_command_returns_descriptive_text_error(capsys: Any) -> None:
     exit_code = main([])
 
     assert exit_code == 2
     captured = capsys.readouterr()
     assert "No command provided." in captured.err
-    assert "judge, evaluate, describe, schema, doctor, validate" in captured.err
+    assert "judge, evaluate, view, describe, schema, doctor, validate" in captured.err
     assert "Run `umbrela --help` for full usage." in captured.err
 
 
