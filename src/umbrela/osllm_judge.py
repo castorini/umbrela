@@ -8,7 +8,6 @@ from tqdm import tqdm
 from transformers.generation import GenerationConfig
 
 from umbrela.llm_judge import LLMJudge
-from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
@@ -32,13 +31,7 @@ class OSLLMJudge(LLMJudge):
         self.num_gpus = num_gpus
 
     def predict_with_llm(self, request_dict, max_new_tokens, prepocess, batch_size=1):
-        if prepocess:
-            self.query_passage = common_utils.preprocess_request_dict(request_dict)
-        else:
-            self.query_passage = request_dict
-        self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self._prompt_template
-        )
+        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
 
         self._llm, self._tokenizer = load_model(
             self.model_name, device=self._device, num_gpus=self.num_gpus
@@ -49,8 +42,8 @@ class OSLLMJudge(LLMJudge):
         gen_cfg.do_sample = False
 
         outputs = []
-        for i in tqdm(range(0, len(self.prompts), batch_size)):
-            inputs = self._tokenizer(self.prompts[i : i + batch_size])
+        for i in tqdm(range(0, len(prompts), batch_size)):
+            inputs = self._tokenizer(prompts[i : i + batch_size])
             inputs = {k: torch.tensor(v).to(self._device) for k, v in inputs.items()}
             output = self._llm.generate(**inputs, generation_config=gen_cfg)
             for b in range(batch_size):
@@ -70,9 +63,7 @@ class OSLLMJudge(LLMJudge):
 
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
-        return common_utils.prepare_judgments(
-            outputs, self.query_passage, self.prompts, self.model_name
-        )
+        return self.prepare_judgments(outputs)
 
 
 def main():

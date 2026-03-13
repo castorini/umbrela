@@ -9,7 +9,6 @@ from retry import retry
 from tqdm import tqdm
 
 from umbrela.llm_judge import LLMJudge
-from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
@@ -53,24 +52,14 @@ class GeminiJudge(LLMJudge):
         max_new_tokens: int,
         prepocess: bool,
     ):
-        if prepocess:
-            self.query_passage = common_utils.preprocess_request_dict(request_dict)
-        else:
-            self.query_passage = request_dict
-        self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self._prompt_template
-        )
+        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
 
-        outputs = [
-            self.run_gemini(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
-        ]
+        outputs = [self.run_gemini(prompt, max_new_tokens) for prompt in tqdm(prompts)]
         return outputs
 
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
-        return common_utils.prepare_judgments(
-            outputs, self.query_passage, self.prompts, self.model_name
-        )
+        return self.prepare_judgments(outputs)
 
 
 def main():
