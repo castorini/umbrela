@@ -68,6 +68,33 @@ class ScriptedJudge(LLMJudge):
         return judgments
 
 
+class NoJudgeReuse(LLMJudge):
+    def __init__(self, qrel: str, prompt_file: Path) -> None:
+        super().__init__(
+            qrel=qrel,
+            model_name="fixture/model",
+            prompt_file=str(prompt_file),
+            prompt_type=None,
+            few_shot_count=0,
+        )
+
+    def predict_with_llm(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int,
+        prepocess: bool,
+    ) -> list[str]:
+        raise AssertionError("cached evaluation should not call predict_with_llm")
+
+    def judge(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
+        raise AssertionError("cached evaluation should not call judge")
+
+
 def test_evaluate_command_uses_fixture_backed_qrel_workflow(
     tmp_path: Path,
     monkeypatch: Any,
@@ -171,3 +198,70 @@ def test_evaluate_command_uses_fixture_backed_qrel_workflow(
     }
     assert any(path.endswith(".png") for path in artifact_paths)
     assert output["warnings"]
+
+
+def test_evaluate_command_reuses_existing_modified_qrel_without_rerunning_judge(
+    tmp_path: Path,
+    monkeypatch: Any,
+    capsys: Any,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    prompt_file = tmp_path / "prompt.yaml"
+    prompt_file.write_text(
+        'method: "custom"\n'
+        'system_message: ""\n'
+        'prefix_user: "{examples}Query: {query}\\nPassage: {passage}\\n"\n',
+        encoding="utf-8",
+    )
+
+    qrel_path = FIXTURE_DIR / "sample.qrels"
+    run_path = FIXTURE_DIR / "sample.run"
+    modified_dir = tmp_path / "modified_qrels"
+    modified_dir.mkdir()
+    cached_result = modified_dir / "sample.q_model_0123_0_1.txt"
+    cached_result.write_text(
+        "1 0 d0 0\n1 0 d1 1\n1 0 d2 2\n1 0 d3 3\n", encoding="utf-8"
+    )
+
+    monkeypatch.setattr(qrel_utils, "get_qrels_file", lambda qrel: str(Path(qrel)))
+    monkeypatch.setattr(
+        qrel_utils,
+        "fetch_ndcg_score",
+        lambda qrel_info, _result_path: (
+            "0.1111" if qrel_info == str(qrel_path) else "0.3333"
+        ),
+    )
+    monkeypatch.setattr(
+        operations,
+        "create_judge",
+        lambda args: NoJudgeReuse(args.qrel, prompt_file),
+    )
+
+    exit_code = main(
+        [
+            "evaluate",
+            "--backend",
+            "gpt",
+            "--model",
+            "fixture/model",
+            "--qrel",
+            str(qrel_path),
+            "--result-file",
+            str(run_path),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "evaluate"
+    assert output["metrics"] == {
+        "original_ndcg@10": "0.1111",
+        "modified_ndcg@10": "0.3333",
+    }
+
+    artifact_paths = [artifact["path"] for artifact in output["artifacts"]]
+    assert "modified_qrels/sample.q_model_0123_0_1.txt" in artifact_paths
+    assert any(path.endswith(".png") for path in artifact_paths)
