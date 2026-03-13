@@ -12,7 +12,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Additional setup notes:
 
-- Install Java 21 once on the host. `pyserini` relies on Lucene and JVM access for passage lookup and qrel utilities.
+- Install Java 21 only when you need qrel-backed evaluation or other
+  `pyserini`-dependent workflows. Plain direct judging does not require Java.
 - If `uv` is not already on `PATH` after installation, add it with `export PATH="$HOME/.local/bin:$PATH"` instead of sourcing shell-specific env scripts.
 - Recommended development bootstrap:
   - `uv python install 3.11`

@@ -70,17 +70,3 @@ umbrela validate judge \
   --output json
 umbrela doctor --output json
 ```
-
-## Migration Examples
-
-Old:
-
-```bash
-umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
-```
-
-New:
-
-```bash
-umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
-```

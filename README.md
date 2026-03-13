@@ -34,7 +34,8 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Prerequisites
 
-- Install Java 21 once on the machine. `pyserini` uses Lucene and the JVM for qrel and passage access.
+- Install Java 21 only if you plan to use qrel-backed evaluation or other
+  `pyserini`-dependent workflows. Plain direct judging does not require Java.
 
 ### Development installation
 
@@ -166,16 +167,6 @@ exact same flat prompt string that earlier `.txt` assets produced. Custom
 Machine-readable output uses the shared `castorini.cli.v1` envelope. The
 `judge` command includes Umbrela's legacy judgment list inside that envelope,
 while `evaluate` includes artifact paths and evaluation metrics.
-
-Migration examples:
-
-```bash
-# old
-uv run umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
-
-# new
-umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
-```
 
 ### Quick end-to-end smoke test
 
