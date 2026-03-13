@@ -18,6 +18,7 @@ from .io import read_jsonl, write_jsonl
 from .normalize import normalize_direct_judge_input
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .responses import CommandResponse
+from umbrela.utils import qrel_utils
 from .view import (
     ViewError,
     build_view_summary,
@@ -281,100 +282,382 @@ def _read_direct_payload(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def build_parser() -> CLIArgumentParser:
-    parser = CLIArgumentParser(prog="umbrela")
+    parser = CLIArgumentParser(
+        prog="umbrela",
+        description=(
+            "Umbrela packaged CLI for direct judging, qrel-backed evaluation, "
+            "validation, and artifact inspection."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Common patterns:\n"
+            "  umbrela judge --backend gpt --model gpt-4o "
+            '--input-json \'{"query":"q","candidates":["p"]}\' --output json\n'
+            "  umbrela evaluate --backend gpt --model gpt-4o "
+            "--qrel dl19-passage --result-file run.trec --output json\n"
+            "  umbrela doctor --output json"
+        ),
+    )
     subparsers = parser.add_subparsers(
         dest="command", required=True, parser_class=CLIArgumentParser
     )
 
-    judge_parser = subparsers.add_parser("judge")
+    judge_parser = subparsers.add_parser(
+        "judge",
+        help="Run a single judge backend over direct JSON input or batch JSONL input.",
+        description=(
+            "Run a single judge backend over direct JSON input or batch JSONL input."
+        ),
+    )
     judge_inputs = judge_parser.add_mutually_exclusive_group(required=True)
-    judge_inputs.add_argument("--input-file", type=str)
-    judge_inputs.add_argument("--stdin", action="store_true")
-    judge_inputs.add_argument("--input-json", type=str)
+    judge_inputs.add_argument(
+        "--input-file",
+        type=str,
+        help="Batch JSONL request file in the shared query-candidate schema.",
+    )
+    judge_inputs.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read one direct JSON payload from standard input.",
+    )
+    judge_inputs.add_argument(
+        "--input-json",
+        type=str,
+        help="Direct JSON payload in the shared query-candidate schema.",
+    )
     judge_parser.add_argument(
         "--backend",
         choices=["gpt", "gemini", "hf", "os"],
         required=True,
+        help="Judge backend to execute.",
     )
-    judge_parser.add_argument("--model", type=str, required=True)
-    judge_parser.add_argument("--output-file", type=str)
     judge_parser.add_argument(
-        "--output", choices=["text", "json", "jsonl"], default="text"
+        "--model",
+        type=str,
+        required=True,
+        help="Model identifier for the selected backend.",
     )
-    judge_parser.add_argument("--prompt-file", type=str)
-    judge_parser.add_argument("--prompt-type", type=str, default="bing")
-    judge_parser.add_argument("--few-shot-count", type=int, default=0)
     judge_parser.add_argument(
-        "--execution-mode", choices=["sync", "async"], default="sync"
+        "--output-file", type=str, help="Output JSONL path for batch judgments."
     )
-    judge_parser.add_argument("--max-concurrency", type=int, default=8)
-    judge_parser.add_argument("--use-azure-openai", action="store_true")
-    judge_parser.add_argument("--use-openrouter", action="store_true")
-    judge_parser.add_argument("--reasoning-effort", choices=["low", "medium", "high"])
-    judge_parser.add_argument("--device", type=str, default="cuda")
-    judge_parser.add_argument("--include-reasoning", action="store_true")
-    judge_parser.add_argument("--min-judgment", type=int)
-    judge_parser.add_argument("--filtered-output-file", type=str)
-    judge_parser.add_argument("--dry-run", action="store_true")
-    judge_parser.add_argument("--overwrite", action="store_true")
-    judge_parser.add_argument("--resume", action="store_true")
-    judge_parser.add_argument("--fail-if-exists", action="store_true")
+    judge_parser.add_argument(
+        "--output",
+        choices=["text", "json", "jsonl"],
+        default="text",
+        help="Human-readable text, machine-readable JSON envelope, or JSONL output.",
+    )
+    judge_parser.add_argument(
+        "--prompt-file", type=str, help="Optional YAML prompt template override."
+    )
+    judge_parser.add_argument(
+        "--prompt-type",
+        type=str,
+        default="bing",
+        help="Built-in prompt template family.",
+    )
+    judge_parser.add_argument(
+        "--few-shot-count",
+        type=int,
+        default=0,
+        help="Number of few-shot examples to inject into the prompt.",
+    )
+    judge_parser.add_argument(
+        "--execution-mode",
+        choices=["sync", "async"],
+        default="sync",
+        help="Execution mode; async is currently supported only for the GPT backend.",
+    )
+    judge_parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=8,
+        help="Maximum concurrent requests for async GPT judging.",
+    )
+    judge_parser.add_argument(
+        "--use-azure-openai",
+        action="store_true",
+        help="Use Azure OpenAI environment settings for the GPT backend.",
+    )
+    judge_parser.add_argument(
+        "--use-openrouter",
+        action="store_true",
+        help="Use OpenRouter for the GPT backend.",
+    )
+    judge_parser.add_argument(
+        "--reasoning-effort",
+        choices=["low", "medium", "high"],
+        help="Reasoning effort for supported GPT-family models.",
+    )
+    judge_parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Execution device for local Hugging Face or FastChat backends.",
+    )
+    judge_parser.add_argument(
+        "--include-reasoning",
+        action="store_true",
+        help="Include model reasoning fields in emitted results where available.",
+    )
+    judge_parser.add_argument(
+        "--min-judgment",
+        type=int,
+        help="Minimum judgment threshold used with --filtered-output-file.",
+    )
+    judge_parser.add_argument(
+        "--filtered-output-file",
+        type=str,
+        help=(
+            "Write a filtered request JSONL containing only candidates "
+            "meeting --min-judgment."
+        ),
+    )
+    judge_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve inputs without running the judge backend.",
+    )
+    judge_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Truncate an existing output file before writing judgments.",
+    )
+    judge_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Allow writing to an existing output file without truncating it.",
+    )
+    judge_parser.add_argument(
+        "--fail-if-exists",
+        action="store_true",
+        help="Fail if the target output path already exists.",
+    )
 
-    evaluate_parser = subparsers.add_parser("evaluate")
+    evaluate_parser = subparsers.add_parser(
+        "evaluate",
+        help="Generate modified qrels and evaluation metrics from a result file.",
+        description=(
+            "Generate modified qrels and evaluation metrics from a result file."
+        ),
+    )
     evaluate_parser.add_argument(
-        "--backend", choices=["gpt", "gemini", "hf", "os", "ensemble"], required=True
+        "--backend",
+        choices=["gpt", "gemini", "hf", "os", "ensemble"],
+        required=True,
+        help="Judge backend to execute.",
     )
-    evaluate_parser.add_argument("--model", type=str)
-    evaluate_parser.add_argument("--qrel", type=str, required=True)
-    evaluate_parser.add_argument("--result-file", type=str)
-    evaluate_parser.add_argument("--prompt-file", type=str)
-    evaluate_parser.add_argument("--prompt-type", type=str, default="bing")
-    evaluate_parser.add_argument("--few-shot-count", type=int, default=0)
-    evaluate_parser.add_argument("--num-sample", type=int, default=1)
-    evaluate_parser.add_argument("--judge-cat", type=str, default="0,1,2,3")
-    evaluate_parser.add_argument("--regenerate", action="store_true")
-    evaluate_parser.add_argument("--output", choices=["text", "json"], default="text")
-    evaluate_parser.add_argument("--dry-run", action="store_true")
-    evaluate_parser.add_argument("--llm-judges", type=str)
-    evaluate_parser.add_argument("--model-names", type=str)
-    evaluate_parser.add_argument("--max-concurrency", type=int, default=8)
-    evaluate_parser.add_argument("--use-azure-openai", action="store_true")
-    evaluate_parser.add_argument("--use-openrouter", action="store_true")
     evaluate_parser.add_argument(
-        "--reasoning-effort", choices=["low", "medium", "high"]
+        "--model", type=str, help="Model identifier for the selected backend."
     )
-    evaluate_parser.add_argument("--device", type=str, default="cuda")
+    evaluate_parser.add_argument(
+        "--qrel",
+        type=str,
+        required=True,
+        help="Named qrel set to score against, such as dl19-passage.",
+    )
+    evaluate_parser.add_argument(
+        "--result-file", type=str, help="Retrieval result file to evaluate."
+    )
+    evaluate_parser.add_argument(
+        "--prompt-file", type=str, help="Optional YAML prompt template override."
+    )
+    evaluate_parser.add_argument(
+        "--prompt-type",
+        type=str,
+        default="bing",
+        help="Built-in prompt template family.",
+    )
+    evaluate_parser.add_argument(
+        "--few-shot-count",
+        type=int,
+        default=0,
+        help="Number of few-shot examples to inject into the prompt.",
+    )
+    evaluate_parser.add_argument(
+        "--num-sample", type=int, default=1, help="Number of judgment samples per pair."
+    )
+    evaluate_parser.add_argument(
+        "--judge-cat",
+        type=str,
+        default="0,1,2,3",
+        help="Comma-separated score categories used in evaluation.",
+    )
+    evaluate_parser.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Regenerate modified qrels even if a cached one already exists.",
+    )
+    evaluate_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable summary or JSON envelope.",
+    )
+    evaluate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate evaluation prerequisites without running judge backends.",
+    )
+    evaluate_parser.add_argument(
+        "--llm-judges",
+        type=str,
+        help="Comma-separated judge backends for ensemble evaluation.",
+    )
+    evaluate_parser.add_argument(
+        "--model-names",
+        type=str,
+        help="Comma-separated model names aligned with --llm-judges.",
+    )
+    evaluate_parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=8,
+        help="Maximum concurrent requests for async GPT evaluation.",
+    )
+    evaluate_parser.add_argument(
+        "--use-azure-openai",
+        action="store_true",
+        help="Use Azure OpenAI environment settings for the GPT backend.",
+    )
+    evaluate_parser.add_argument(
+        "--use-openrouter",
+        action="store_true",
+        help="Use OpenRouter for the GPT backend.",
+    )
+    evaluate_parser.add_argument(
+        "--reasoning-effort",
+        choices=["low", "medium", "high"],
+        help="Reasoning effort for supported GPT-family models.",
+    )
+    evaluate_parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Execution device for local Hugging Face or FastChat backends.",
+    )
 
-    describe_parser = subparsers.add_parser("describe")
-    describe_parser.add_argument("target", choices=sorted(COMMAND_DESCRIPTIONS))
-    describe_parser.add_argument("--output", choices=["text", "json"], default="text")
+    describe_parser = subparsers.add_parser(
+        "describe",
+        help="Inspect structured metadata for a public Umbrela command.",
+    )
+    describe_parser.add_argument(
+        "target",
+        choices=sorted(COMMAND_DESCRIPTIONS),
+        help="Public command to describe.",
+    )
+    describe_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable description or JSON envelope.",
+    )
 
-    schema_parser = subparsers.add_parser("schema")
-    schema_parser.add_argument("target", choices=sorted(SCHEMAS))
-    schema_parser.add_argument("--output", choices=["text", "json"], default="text")
+    schema_parser = subparsers.add_parser(
+        "schema",
+        help="Print JSON schemas for supported Umbrela inputs, outputs, and envelopes.",
+    )
+    schema_parser.add_argument(
+        "target", choices=sorted(SCHEMAS), help="Schema artifact to print."
+    )
+    schema_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable schema or JSON envelope.",
+    )
 
-    doctor_parser = subparsers.add_parser("doctor")
-    doctor_parser.add_argument("--output", choices=["text", "json"], default="text")
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help=(
+            "Report environment, dependency, and backend readiness for the "
+            "packaged Umbrela CLI."
+        ),
+    )
+    doctor_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable readiness report or JSON envelope.",
+    )
 
-    view_parser = subparsers.add_parser("view")
-    view_parser.add_argument("path", type=str)
-    view_parser.add_argument("--type", dest="artifact_type", type=str)
-    view_parser.add_argument("--records", type=int, default=3)
+    view_parser = subparsers.add_parser(
+        "view",
+        help="Inspect an existing Umbrela artifact.",
+        description=(
+            "Inspect an existing Umbrela judgment artifact and render a stable summary."
+        ),
+    )
+    view_parser.add_argument("path", type=str, help="Artifact path to inspect.")
     view_parser.add_argument(
-        "--color", choices=["auto", "always", "never"], default="auto"
+        "--type",
+        dest="artifact_type",
+        type=str,
+        help="Explicit artifact type when automatic detection is ambiguous.",
     )
-    view_parser.add_argument("--show-prompts", action="store_true")
-    view_parser.add_argument("--output", choices=["text", "json"], default="text")
+    view_parser.add_argument(
+        "--records",
+        type=int,
+        default=3,
+        help="Number of records to sample in the inspection summary.",
+    )
+    view_parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Color policy for text-mode rendering.",
+    )
+    view_parser.add_argument(
+        "--show-prompts",
+        action="store_true",
+        help="Include sampled prompt text in the inspection summary.",
+    )
+    view_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable summary or JSON envelope.",
+    )
 
-    validate_parser = subparsers.add_parser("validate")
-    validate_parser.add_argument("target", choices=["judge", "evaluate"])
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help=(
+            "Validate direct JSON input, batch JSONL input, or evaluation "
+            "prerequisites without running models."
+        ),
+        description=(
+            "Validate direct JSON input, batch JSONL input, or evaluation "
+            "prerequisites without running models."
+        ),
+    )
+    validate_parser.add_argument(
+        "target", choices=["judge", "evaluate"], help="Validation target to inspect."
+    )
     validate_inputs = validate_parser.add_mutually_exclusive_group()
-    validate_inputs.add_argument("--input-file", type=str)
-    validate_inputs.add_argument("--stdin", action="store_true")
-    validate_inputs.add_argument("--input-json", type=str)
-    validate_parser.add_argument("--qrel", type=str)
-    validate_parser.add_argument("--result-file", type=str)
-    validate_parser.add_argument("--output", choices=["text", "json"], default="text")
+    validate_inputs.add_argument(
+        "--input-file", type=str, help="Batch JSONL request file to validate."
+    )
+    validate_inputs.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read one direct JSON payload from standard input.",
+    )
+    validate_inputs.add_argument(
+        "--input-json", type=str, help="Direct JSON payload to validate."
+    )
+    validate_parser.add_argument(
+        "--qrel", type=str, help="Named qrel set required for evaluation validation."
+    )
+    validate_parser.add_argument(
+        "--result-file",
+        type=str,
+        help="Retrieval result file required for evaluation validation.",
+    )
+    validate_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable validation summary or JSON envelope.",
+    )
 
     return parser
 
@@ -574,7 +857,13 @@ def _run_schema_command(args: argparse.Namespace) -> CommandResponse:
 
 
 def _run_doctor_command() -> CommandResponse:
-    return CommandResponse(command="doctor", mode="inspect", metrics=doctor_report())
+    report = doctor_report()
+    return CommandResponse(
+        command="doctor",
+        mode="inspect",
+        metrics=report,
+        validation={"python_ok": report["python_ok"]},
+    )
 
 
 def _run_view_command(args: argparse.Namespace) -> CommandResponse:
@@ -615,7 +904,7 @@ def _run_view_command(args: argparse.Namespace) -> CommandResponse:
 
 
 def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
-    response = CommandResponse(command="validate", mode="inspect")
+    response = CommandResponse(command="validate", mode="validate")
     if args.target == "judge":
         if args.input_file is not None:
             _ensure_file_exists(
@@ -625,6 +914,19 @@ def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
         else:
             payload = _read_direct_payload(args)
             response.validation = validate_judge_payload(payload)
+        response.status = (
+            "success" if response.validation.get("valid", False) else "validation_error"
+        )
+        response.exit_code = 0 if response.status == "success" else VALIDATION_EXIT_CODE
+        if response.status != "success":
+            response.errors.append(
+                {
+                    "code": "validation_failed",
+                    "message": "judge input failed validation",
+                    "details": response.validation,
+                    "retryable": False,
+                }
+            )
         return response
     if args.qrel is None:
         raise CLIError(
@@ -634,15 +936,33 @@ def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
             error_code="missing_qrel",
             command="validate",
         )
-    if args.result_file is not None:
-        _ensure_file_exists(
-            args.result_file, command="validate", field_name="result_file"
+    if args.result_file is None:
+        raise CLIError(
+            "validate evaluate requires --result-file",
+            exit_code=INVALID_ARGS_EXIT_CODE,
+            status="validation_error",
+            error_code="missing_result_file",
+            command="validate",
         )
+    _ensure_file_exists(args.result_file, command="validate", field_name="result_file")
+    qrel_supported = qrel_utils.get_qrels_file(args.qrel) is not None
     response.validation = {
-        "valid": True,
+        "valid": qrel_supported,
         "qrel": args.qrel,
-        "result_file_present": args.result_file is not None,
+        "result_file_present": True,
+        "qrel_supported": qrel_supported,
     }
+    response.status = "success" if qrel_supported else "validation_error"
+    response.exit_code = 0 if qrel_supported else VALIDATION_EXIT_CODE
+    if not qrel_supported:
+        response.errors.append(
+            {
+                "code": "unsupported_qrel",
+                "message": f"Unsupported qrel: {args.qrel}",
+                "details": {"qrel": args.qrel},
+                "retryable": False,
+            }
+        )
     return response
 
 

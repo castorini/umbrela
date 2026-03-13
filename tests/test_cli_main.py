@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from umbrela.cli.main import main
 
 
@@ -72,6 +74,8 @@ def test_direct_judge_via_input_json(monkeypatch: Any, capsys: Any) -> None:
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "judge"
     assert output["schema_version"] == "castorini.cli.v1"
+    assert output["artifacts"][0]["kind"] == "data"
+    assert output["artifacts"][0]["name"] == "judgments"
     assert output["artifacts"][0]["data"][0]["judgment"] == 3
     assert "reasoning" not in output["artifacts"][0]["data"][0]
 
@@ -617,6 +621,18 @@ def test_doctor_returns_json_envelope(capsys: Any) -> None:
     assert output["command"] == "doctor"
     assert "python_version" in output["metrics"]
     assert "openrouter" in output["metrics"]["provider_keys"]
+    assert "backend_readiness" in output["metrics"]
+
+
+def test_top_level_help_includes_command_summaries(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    assert exc_info.value.code == 0
+    stdout = capsys.readouterr().out
+    assert "Umbrela packaged CLI" in stdout
+    assert "run a single judge backend" in stdout.lower()
+    assert "inspect an existing umbrela artifact" in stdout.lower()
 
 
 def test_validate_judge_direct_returns_json_envelope(capsys: Any) -> None:

@@ -183,6 +183,10 @@ umbrela schema judge-direct-input
 umbrela validate judge \
   --input-json '{"query":"q","candidates":["p1","p2"]}' \
   --output json
+umbrela validate evaluate \
+  --qrel dl19-passage \
+  --result-file run.trec \
+  --output json
 umbrela doctor --output json
 ```
 
@@ -197,7 +201,16 @@ exact same flat prompt string that earlier `.txt` assets produced. Custom
 
 Machine-readable output uses the shared `castorini.cli.v1` envelope. The
 `judge` command includes Umbrela's legacy judgment list inside that envelope,
-while `evaluate` includes artifact paths and evaluation metrics.
+while `evaluate` includes artifact paths and evaluation metrics. The JSON
+artifact contract now uses a consistent `kind` plus `name` shape across the
+shared Castorini CLIs.
+
+### CLI For Automation
+
+- Use `--output json` for automation; that is the authoritative machine-readable interface.
+- `umbrela doctor --output json` reports command and backend readiness with explicit `ready`, `missing_env`, `missing_dependency`, or `blocked` states.
+- `umbrela validate judge ...` and `umbrela validate evaluate ...` are non-mutating checks; they do not run models.
+- The demo scripts in `examples/` remain demos, not alternate public CLIs.
 
 ### Quick end-to-end smoke test
 

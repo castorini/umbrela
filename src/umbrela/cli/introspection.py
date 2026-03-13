@@ -66,6 +66,27 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         ],
         "supported_types": ["judge-output"],
     },
+    "describe": {
+        "summary": "Inspect structured metadata for a public Umbrela command.",
+    },
+    "schema": {
+        "summary": (
+            "Print JSON schemas for supported Umbrela inputs, outputs, and envelopes."
+        ),
+    },
+    "doctor": {
+        "summary": (
+            "Report environment, dependency, and backend readiness for "
+            "the packaged Umbrela CLI."
+        ),
+    },
+    "validate": {
+        "summary": (
+            "Validate direct JSON input, batch JSONL input, or evaluation "
+            "prerequisites without running models."
+        ),
+        "targets": ["judge", "evaluate"],
+    },
 }
 
 
@@ -152,6 +173,17 @@ SCHEMAS: dict[str, dict[str, Any]] = {
         "type": "object",
         "required": ["path", "artifact_type", "summary", "sampled_records"],
     },
+    "doctor-output": {
+        "type": "object",
+        "required": [
+            "python_version",
+            "python_ok",
+            "env_file_present",
+            "backend_readiness",
+            "command_readiness",
+            "overall_status",
+        ],
+    },
     "cli-envelope": {
         "type": "object",
         "required": [
@@ -177,22 +209,85 @@ def doctor_report() -> dict[str, Any]:
     env_path = Path(".env")
     pyserini_available = qrel_utils.get_qrels_file is not None
     java_home = os.getenv("JAVA_HOME")
+    python_ok = sys.version_info >= (3, 11)
+    openai_ready = bool(os.getenv("OPENAI_API_KEY"))
+    openrouter_ready = bool(os.getenv("OPENROUTER_API_KEY"))
+    azure_ready = bool(
+        os.getenv("AZURE_OPENAI_API_BASE") and os.getenv("AZURE_OPENAI_API_VERSION")
+    )
+    gemini_ready = bool(os.getenv("GCLOUD_PROJECT") and os.getenv("GCLOUD_REGION"))
+    hf_ready = bool(os.getenv("HF_TOKEN"))
+
+    def status(
+        *,
+        ready: bool,
+        missing_env: list[str] | None = None,
+        missing_deps: list[str] | None = None,
+    ) -> dict[str, Any]:
+        missing_env = missing_env or []
+        missing_deps = missing_deps or []
+        if ready:
+            state = "ready"
+        elif missing_env:
+            state = "missing_env"
+        elif missing_deps:
+            state = "missing_dependency"
+        else:
+            state = "blocked"
+        return {
+            "status": state,
+            "missing_env": missing_env,
+            "missing_dependencies": missing_deps,
+        }
+
+    backend_readiness = {
+        "gpt": status(
+            ready=python_ok and (openai_ready or openrouter_ready or azure_ready),
+            missing_env=[]
+            if (openai_ready or openrouter_ready or azure_ready)
+            else [
+                "OPENAI_API_KEY or OPENROUTER_API_KEY or Azure OpenAI settings",
+            ],
+        ),
+        "gemini": status(
+            ready=python_ok and gemini_ready,
+            missing_env=[] if gemini_ready else ["GCLOUD_PROJECT", "GCLOUD_REGION"],
+        ),
+        "hf": status(
+            ready=python_ok and hf_ready,
+            missing_env=[] if hf_ready else ["HF_TOKEN"],
+        ),
+        "os": status(ready=python_ok),
+        "ensemble": status(ready=python_ok),
+    }
+    command_readiness = {
+        command: status(ready=python_ok)
+        for command in [
+            "judge",
+            "evaluate",
+            "view",
+            "describe",
+            "schema",
+            "doctor",
+            "validate",
+        ]
+    }
     return {
         "python_version": sys.version.split()[0],
-        "python_ok": sys.version_info >= (3, 11),
+        "python_ok": python_ok,
         "env_file_present": env_path.exists(),
         "provider_keys": {
-            "openai": bool(os.getenv("OPENAI_API_KEY")),
-            "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
-            "azure": bool(
-                os.getenv("AZURE_OPENAI_API_BASE")
-                and os.getenv("AZURE_OPENAI_API_VERSION")
-            ),
-            "gemini": bool(os.getenv("GCLOUD_PROJECT") and os.getenv("GCLOUD_REGION")),
-            "huggingface": bool(os.getenv("HF_TOKEN")),
+            "openai": openai_ready,
+            "openrouter": openrouter_ready,
+            "azure": azure_ready,
+            "gemini": gemini_ready,
+            "huggingface": hf_ready,
         },
         "pyserini_available": pyserini_available,
         "java_configured": bool(java_home),
+        "backend_readiness": backend_readiness,
+        "command_readiness": command_readiness,
+        "overall_status": "ready" if python_ok else "blocked",
     }
 
 
