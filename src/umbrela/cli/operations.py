@@ -123,7 +123,11 @@ def _evaluate_with_single_judge(args: Any) -> EvaluateResult:
             ),
         }
     artifact_paths = [path for path in [result_path] if path]
-    conf_path = f"conf_matrix/{args.qrel}-{os.path.basename(args.model)}.png"
+    conf_path = (
+        "conf_matrix/"
+        f"{common_utils.artifact_label(args.qrel)}-"
+        f"{os.path.basename(args.model)}.png"
+    )
     if Path(conf_path).exists():
         artifact_paths.append(conf_path)
     return EvaluateResult(

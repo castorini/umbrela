@@ -145,7 +145,11 @@ class LLMJudge(ABC):
         ax.set_title(self.qrel, fontsize=14)
         ax.set_xlabel("Predicted label", fontsize=14)
         ax.set_ylabel("True label", fontsize=14)
-        plt.savefig(f"conf_matrix/{self.qrel}-{os.path.basename(self.model_name)}.png")
+        plt.savefig(
+            "conf_matrix/"
+            f"{common_utils.artifact_label(self.qrel)}-"
+            f"{os.path.basename(self.model_name)}.png"
+        )
 
     def evalute_results_with_qrel(
         self,

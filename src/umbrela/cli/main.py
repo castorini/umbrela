@@ -396,8 +396,18 @@ def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
         )
     result = run_evaluate(args)
     artifacts = [make_file_artifact("evaluation-output", result.result_path)]
-    for index, path in enumerate(result.artifact_paths):
-        artifacts.append(make_file_artifact(f"artifact-{index}", path))
+    seen_paths = {artifacts[0]["path"]}
+    extra_artifact_index = 0
+    for path in result.artifact_paths:
+        artifact_path = make_file_artifact(
+            f"artifact-{extra_artifact_index}",
+            path,
+        )
+        if artifact_path["path"] in seen_paths:
+            continue
+        seen_paths.add(artifact_path["path"])
+        artifacts.append(artifact_path)
+        extra_artifact_index += 1
     return CommandResponse(
         command="evaluate",
         inputs={

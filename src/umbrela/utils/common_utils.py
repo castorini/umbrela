@@ -3,6 +3,7 @@ import os
 import re
 import threading
 from collections.abc import Coroutine, Sequence
+from pathlib import Path
 from typing import Any, TypeAlias, TypeVar, cast
 
 import matplotlib.pyplot as plt
@@ -53,6 +54,11 @@ def run_async_blocking(coro: Coroutine[Any, Any, T]) -> T:
         raise error["error"]
 
     return result["value"]
+
+
+def artifact_label(value: str) -> str:
+    path = Path(value)
+    return path.stem if path.suffix else path.name
 
 
 def parse_fewshot_response(response: str, passage: str, query: str) -> tuple[int, int]:
@@ -191,4 +197,7 @@ def draw_confusion_matrix(
     ax.set_title(qrel, fontsize=14)
     ax.set_xlabel("Predicted label", fontsize=14)
     ax.set_ylabel("True label", fontsize=14)
-    plt.savefig(f"conf_matrix/{qrel}-{os.path.basename(model_name)}.png")
+    plt.savefig(
+        "conf_matrix/"
+        f"{artifact_label(qrel)}-{os.path.basename(model_name)}.png"
+    )
