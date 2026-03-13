@@ -99,19 +99,29 @@ Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and `basic`
 
 ### Quick end-to-end smoke test
 
-For a small in-memory request that mirrors the package API, run:
+For the default async-first OpenAI/Azure OpenAI example, run:
 
 ```bash
-uv run python examples/e2e.py --judge gpt --model gpt-4o
+uv run python examples/e2e.py --model gpt-4o
 ```
 
-You can swap `--judge` to `gemini`, `hf`, or `os` and pass the matching model identifier plus any backend-specific environment variables from the setup section.
+Pass `--use_azure_openai` to target Azure OpenAI instead of the public OpenAI API. The example uses bounded request concurrency; tune it with `--max_concurrency`.
+
+For the synchronous compatibility example, run:
+
+```bash
+uv run python examples/sync_e2e.py --judge gpt --model gpt-4o
+```
+
+`sync_e2e.py` also retains the multi-backend smoke-test flow for `gemini`, `hf`, and `os`.
 
 ### Programmatic usage
 
 ```python
-from umbrela.gpt_judge import GPTJudge
+import asyncio
+
 from dotenv import load_dotenv
+from umbrela.gpt_judge import GPTJudge
 
 load_dotenv()
 
@@ -131,6 +141,12 @@ input_dict = {
     ]
 }
 
+judgments = asyncio.run(judge_gpt.async_judge(request_dict=input_dict))
+```
+
+The synchronous compatibility shim remains available:
+
+```python
 judgments = judge_gpt.judge(request_dict=input_dict)
 ```
 
