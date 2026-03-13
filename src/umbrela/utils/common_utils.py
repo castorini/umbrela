@@ -2,24 +2,31 @@ import asyncio
 import os
 import re
 import threading
-from typing import Any, Awaitable, TypeVar
+from collections.abc import Coroutine, Sequence
+from typing import Any, TypeAlias, TypeVar, cast
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
 
 T = TypeVar("T")
+QueryPassage: TypeAlias = list[tuple[str, str]]
+Judgment: TypeAlias = dict[str, Any]
 
 
-def preprocess_request_dict(request_dict):
-    query_passage = []
+def preprocess_request_dict(request_dict: dict[str, Any]) -> QueryPassage:
+    query_passage: QueryPassage = []
     query = request_dict["query"]["text"]
     for cand in request_dict["candidates"]:
         query_passage.append((query, cand["doc"]["segment"]))
     return query_passage
 
 
-def generate_prompts(query_passage, prompt_examples, prompt_template):
-    prompts = []
+def generate_prompts(
+    query_passage: Sequence[tuple[str, str]],
+    prompt_examples: str,
+    prompt_template: str,
+) -> list[str]:
+    prompts: list[str] = []
     for q_p in query_passage:
         prompt = prompt_template.format(
             examples=prompt_examples,
@@ -30,16 +37,21 @@ def generate_prompts(query_passage, prompt_examples, prompt_template):
     return prompts
 
 
-def prepare_request_inputs(request_dict, preprocess, prompt_examples, prompt_template):
+def prepare_request_inputs(
+    request_dict: dict[str, Any] | QueryPassage,
+    preprocess: bool,
+    prompt_examples: str,
+    prompt_template: str,
+) -> tuple[QueryPassage, list[str]]:
     if preprocess:
-        query_passage = preprocess_request_dict(request_dict)
+        query_passage = preprocess_request_dict(cast(dict[str, Any], request_dict))
     else:
-        query_passage = request_dict
+        query_passage = cast(QueryPassage, request_dict)
     prompts = generate_prompts(query_passage, prompt_examples, prompt_template)
     return query_passage, prompts
 
 
-def run_async_blocking(coro: Awaitable[T]) -> T:
+def run_async_blocking(coro: Coroutine[Any, Any, T]) -> T:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -64,7 +76,7 @@ def run_async_blocking(coro: Awaitable[T]) -> T:
     return result["value"]
 
 
-def parse_fewshot_response(response: str, passage: str, query: str) -> int:
+def parse_fewshot_response(response: str, passage: str, query: str) -> tuple[int, int]:
     response = response.strip().lower()
     valid_res = 1
     answer = ""
@@ -130,9 +142,13 @@ def extract_reasoning_content(message: Any) -> str | None:
 
 
 def prepare_judgments(
-    outputs, query_passage, prompts, model_name, reasoning_outputs=None
-):
-    judgments = []
+    outputs: Sequence[str],
+    query_passage: Sequence[tuple[str, str]],
+    prompts: Sequence[str],
+    model_name: str,
+    reasoning_outputs: Sequence[str | None] | None = None,
+) -> list[Judgment]:
+    judgments: list[Judgment] = []
     if reasoning_outputs is None:
         reasoning_outputs = [None] * len(outputs)
     for output, reasoning, (query, passage), prompt in zip(
@@ -156,7 +172,12 @@ def prepare_judgments(
     return judgments
 
 
-def write_modified_qrel(modified_data, qrel_path):
+def write_modified_qrel(
+    modified_data: dict[int | str, dict[int | str, int | str]]
+    | dict[int | str, dict[int | str, int]]
+    | dict[int | str, dict[int | str, str]],
+    qrel_path: str,
+) -> None:
     with open(qrel_path, "wb") as f_out:
         for qid in modified_data:
             for doc_id in modified_data[qid]:
@@ -167,7 +188,7 @@ def write_modified_qrel(modified_data, qrel_path):
                 f_out.write(encoded)
 
 
-def calculate_kappa(gts, preds):
+def calculate_kappa(gts: Sequence[int | str], preds: Sequence[int | str]) -> None:
     print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
     print("-" * 79)
     gts_bin = [1 if int(x) > 1 else 0 for x in gts]
@@ -176,7 +197,9 @@ def calculate_kappa(gts, preds):
     print("-" * 79)
 
 
-def draw_confusion_matrix(gts, preds, qrel, model_name):
+def draw_confusion_matrix(
+    gts: Sequence[int | str], preds: Sequence[int | str], qrel: str, model_name: str
+) -> None:
     conf_mat = confusion_matrix(gts, preds)
     print(conf_mat)
 

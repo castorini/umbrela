@@ -3,6 +3,8 @@ import asyncio
 from importlib import resources
 import os
 import statistics
+from collections.abc import Sequence
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, cohen_kappa_score, confusion_matrix
@@ -14,8 +16,8 @@ class LLMJudge(ABC):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: str,
-        prompt_type: str,
+        prompt_file: str | None,
+        prompt_type: str | None,
         few_shot_count: int,
     ) -> None:
         assert not (prompt_file and prompt_type), (
@@ -25,19 +27,21 @@ class LLMJudge(ABC):
         self.qrel = qrel
         self.few_shot_count = few_shot_count
         using_custom_prompt = bool(prompt_file)
+        resolved_prompt_file = prompt_file
 
         if prompt_type:
             if prompt_type not in ["bing", "basic"]:
                 raise ValueError(f"Invalid prompt_type: {prompt_type}.")
             prompt_mode_str = "fewshot" if few_shot_count > 0 else "zeroshot"
-            prompt_file = resources.files("umbrela").joinpath(
-                f"prompts/qrel_{prompt_mode_str}_{prompt_type}.txt"
+            resolved_prompt_file = str(
+                resources.files("umbrela").joinpath(
+                    f"prompts/qrel_{prompt_mode_str}_{prompt_type}.txt"
+                )
             )
-            if not os.path.exists(prompt_file):
+            if not os.path.exists(resolved_prompt_file):
                 raise ValueError("Prompt file doesn't exist.")
 
-        if prompt_file:
-            prompt_file = os.fspath(prompt_file)
+        if resolved_prompt_file:
             if using_custom_prompt:
                 print(
                     "Custom prompt file must provide the fields "
@@ -52,7 +56,7 @@ class LLMJudge(ABC):
             )
         elif few_shot_count == 0:
             self.prompt_examples = ""
-            if "fewshot" in prompt_file:
+            if resolved_prompt_file and "fewshot" in resolved_prompt_file:
                 print(
                     "Warning!! default fewshot prompt file being used for "
                     "few_shot_count = 0"
@@ -60,13 +64,18 @@ class LLMJudge(ABC):
         else:
             raise ValueError(f"Invalid value for few_shot_count: {few_shot_count}")
 
-        with open(prompt_file) as p:
+        if resolved_prompt_file is None:
+            raise ValueError("A prompt file or supported prompt type is required.")
+
+        with open(resolved_prompt_file) as p:
             self._prompt_template = "".join(p.readlines()).strip()
 
-    def display_prompt_template(self):
+    def display_prompt_template(self) -> None:
         print(self._prompt_template)
 
-    def prepare_request_inputs(self, request_dict, prepocess):
+    def prepare_request_inputs(
+        self, request_dict: dict[str, Any] | common_utils.QueryPassage, prepocess: bool
+    ) -> tuple[common_utils.QueryPassage, list[str]]:
         query_passage, prompts = common_utils.prepare_request_inputs(
             request_dict,
             prepocess,
@@ -77,7 +86,9 @@ class LLMJudge(ABC):
         self.prompts = prompts
         return query_passage, prompts
 
-    def prepare_judgments(self, outputs):
+    def prepare_judgments(
+        self, outputs: list[str]
+    ) -> list[common_utils.Judgment]:
         return common_utils.prepare_judgments(
             outputs,
             self.query_passage,
@@ -87,27 +98,45 @@ class LLMJudge(ABC):
         )
 
     @abstractmethod
-    def predict_with_llm(self, request_dict, max_new_tokens, prepocess):
-        pass
+    def predict_with_llm(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int,
+        prepocess: bool,
+    ) -> list[str]: ...
 
-    async def async_predict_with_llm(self, request_dict, max_new_tokens, prepocess):
+    async def async_predict_with_llm(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int,
+        prepocess: bool,
+    ) -> list[str]:
         return await asyncio.to_thread(
             self.predict_with_llm, request_dict, max_new_tokens, prepocess
         )
 
     @abstractmethod
-    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
-        pass
+    def judge(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]: ...
 
     async def async_judge(
-        self, request_dict, max_new_tokens=100, prepocess: bool = True
-    ):
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
         outputs = await self.async_predict_with_llm(
             request_dict, max_new_tokens, prepocess
         )
         return self.prepare_judgments(outputs)
 
-    def calculate_kappa(self, gts, preds):
+    def calculate_kappa(
+        self, gts: Sequence[int | str], preds: Sequence[int | str]
+    ) -> None:
         print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
         print("-" * 79)
         gts_bin = [1 if int(x) > 1 else 0 for x in gts]
@@ -115,7 +144,9 @@ class LLMJudge(ABC):
         print(f"Binarized Kohen kappa overall: {cohen_kappa_score(gts_bin, preds_bin)}")
         print("-" * 79)
 
-    def draw_confusion_matrix(self, gts, preds):
+    def draw_confusion_matrix(
+        self, gts: Sequence[int | str], preds: Sequence[int | str]
+    ) -> None:
         conf_mat = confusion_matrix(gts, preds)
         print(conf_mat)
 
@@ -132,27 +163,35 @@ class LLMJudge(ABC):
 
     def evalute_results_with_qrel(
         self,
-        result_file,
-        judge_cat=[0, 1, 2, 3],
-        regenerate=False,
-        num_samples=1,
-        return_results_path=False,
-    ):
+        result_file: str | None,
+        judge_cat: list[int] | None = None,
+        regenerate: bool = False,
+        num_samples: int = 1,
+        return_results_path: bool = False,
+    ) -> str | None:
         from umbrela.utils import qrel_utils
+
+        if judge_cat is None:
+            judge_cat = [0, 1, 2, 3]
 
         result_dir = "modified_qrels"
         os.makedirs(result_dir, exist_ok=True)
 
         path = qrel_utils.get_qrels_file(self.qrel)
-        modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{self.model_name.split('/')[-1]}_{''.join(map(str, judge_cat))}_{self.few_shot_count}_{num_samples}.txt"
+        modified_qrel = (
+            f"{result_dir}/{os.path.basename(path)[:-4]}_"
+            f"{self.model_name.split('/')[-1]}_{''.join(map(str, judge_cat))}_"
+            f"{self.few_shot_count}_{num_samples}.txt"
+        )
         print(f"Output file: {modified_qrel}")
 
+        unmatch_dict: dict[int | str, list[int]] = {}
         if os.path.exists(modified_qrel) and not regenerate:
             org_qd = qrel_utils.get_qrels(self.qrel)
             new_qd = qrel_utils.get_qrels(modified_qrel)
 
-            unmatch_dict = {}
-            gts, preds = [], []
+            gts: list[int | str] = []
+            preds: list[int | str] = []
 
             for qid in org_qd:
                 for docid in org_qd[qid]:
@@ -165,35 +204,44 @@ class LLMJudge(ABC):
                     preds.append(new_qd[qid][docid])
 
         else:
-            holes_tup, gts = qrel_utils.generate_holes(self.qrel, judge_cat=judge_cat)
-            qrel_data = qrel_utils.get_qrels(self.qrel)
-            unmatch_dict = {}
+            holes_tup, generated_gts = qrel_utils.generate_holes(
+                self.qrel, judge_cat=judge_cat
+            )
+            qrel_data = cast(
+                dict[int | str, dict[int | str, int | str]],
+                qrel_utils.get_qrels(self.qrel),
+            )
             holes_qp = qrel_utils.prepare_query_passage(holes_tup, self.qrel)
             if num_samples > 1:
                 holes_qp = [item for item in holes_qp for _ in range(num_samples)]
                 holes_tup = [item for item in holes_tup for _ in range(num_samples)]
-                gts = [item for item in gts for _ in range(num_samples)]
+                generated_gts = [
+                    item for item in generated_gts for _ in range(num_samples)
+                ]
+            gts = list(generated_gts)
 
             judgments = self.judge(holes_qp, prepocess=False, max_new_tokens=200)
 
-            valid_res = {}
+            valid_res: dict[int | str, list[int]] = {}
             preds = []
-            gts_valid, preds_valid = [], []
+            gts_valid: list[int | str] = []
+            preds_valid: list[int | str] = []
             for index in range(0, len(judgments), num_samples):
-                temp = []
+                temp: list[int] = []
                 for internal_index in range(index, index + num_samples):
                     gt = gts[internal_index]
                     judgment = judgments[internal_index]
-                    preds.append(judgment["judgment"])
-                    curr_res = int(gt == judgment["judgment"])
-                    temp.append(judgment["judgment"])
+                    predicted_label = int(judgment["judgment"])
+                    preds.append(predicted_label)
+                    curr_res = int(gt == predicted_label)
+                    temp.append(predicted_label)
                     if gt not in unmatch_dict:
                         unmatch_dict[gt] = [curr_res]
                     else:
                         unmatch_dict[gt].append(curr_res)
                     if judgment["result_status"]:
                         gts_valid.append(gt)
-                        preds_valid.append(judgment["judgment"])
+                        preds_valid.append(predicted_label)
                         if gt not in valid_res:
                             valid_res[gt] = [curr_res]
                         else:
@@ -206,7 +254,9 @@ class LLMJudge(ABC):
             self.calculate_kappa(gts_valid, preds_valid)
             for cat in valid_res:
                 print(
-                    f"Stats for {cat}. Correct judgments count in valid result: {sum(valid_res[cat])}/{len(valid_res[cat])}"
+                    "Stats for "
+                    f"{cat}. Correct judgments count in valid result: "
+                    f"{sum(valid_res[cat])}/{len(valid_res[cat])}"
                 )
 
         print("For overall results:")
@@ -215,7 +265,9 @@ class LLMJudge(ABC):
 
         for cat in unmatch_dict:
             print(
-                f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+                "Stats for "
+                f"{cat}. Correct judgments count: {sum(unmatch_dict[cat])}/"
+                f"{len(unmatch_dict[cat])}"
             )
 
         if result_file:
@@ -227,3 +279,4 @@ class LLMJudge(ABC):
 
         if return_results_path:
             return modified_qrel
+        return None

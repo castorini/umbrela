@@ -108,7 +108,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F"]
-ignore = ["E501"]
 
 [tool.mypy]
 check_untyped_defs = true
@@ -119,20 +118,27 @@ strict_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
-ignore_missing_imports = true
 cache_dir = ".mypy_cache"
 incremental = true
 
 [[tool.mypy.overrides]]
 module = [
-    "tests.test_gpt_judge_async",
-    "umbrela.ensemble_judge",
-    "umbrela.gemini_judge",
-    "umbrela.gpt_judge",
-    "umbrela.hgfllm_judge",
-    "umbrela.llm_judge",
-    "umbrela.osllm_judge",
-    "umbrela.utils.common_utils",
-    "umbrela.utils.qrel_utils",
+    "datasets",
+    "fastchat",
+    "fastchat.*",
+    "pyserini",
+    "pyserini.*",
+    "retry",
+    "sklearn",
+    "sklearn.*",
+    "torch",
+    "torch.*",
+    "transformers",
+    "transformers.*",
+    "vertexai",
+    "vertexai.*",
 ]
-ignore_errors = true
+ignore_missing_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"src/eval/test.py" = ["E501"]

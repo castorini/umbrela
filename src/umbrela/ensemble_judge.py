@@ -10,7 +10,7 @@ from umbrela.utils import common_utils
 JUDGE_CAT = [0, 1, 2, 3]
 
 
-def main():
+def main() -> None:
     from umbrela.utils import qrel_utils
 
     parser = argparse.ArgumentParser()
@@ -41,7 +41,7 @@ def main():
         "incomplete list of LLM judges or model names"
     )
 
-    results = []
+    results: list[dict[int | str, dict[int | str, str]]] = []
     for i in range(len(llm_judges)):
         llm_judge = llm_judges[i]
         llm_judge = llm_judge.strip()
@@ -65,7 +65,7 @@ def main():
         )
         results.append(qrel_utils.get_qrels(output_file))
 
-    final_qd = {}
+    final_qd: dict[int | str, dict[int | str, int]] = {}
     for qid in results[0]:
         for doc_id in results[0][qid]:
             if qid not in final_qd:
@@ -80,7 +80,10 @@ def main():
         model_names[i].strip().split("/")[-1] for i in range(len(model_names))
     )
     path = qrel_utils.get_qrels_file(args.qrel)
-    modified_qrel = f"{result_dir}/{os.path.basename(path)[:-4]}_{combined_model_name}_{''.join(map(str, JUDGE_CAT))}_{args.few_shot_count}_{args.num_sample}.txt"
+    modified_qrel = (
+        f"{result_dir}/{os.path.basename(path)[:-4]}_{combined_model_name}_"
+        f"{''.join(map(str, JUDGE_CAT))}_{args.few_shot_count}_{args.num_sample}.txt"
+    )
     common_utils.write_modified_qrel(final_qd, modified_qrel)
     print("-" * 79)
     print("-" * 79)
@@ -88,7 +91,7 @@ def main():
     print("-" * 79)
 
     org_qd = qrel_utils.get_qrels(args.qrel)
-    unmatch_dict = {}
+    unmatch_dict: dict[int, list[int]] = {}
     gts, preds = [], []
     for qid in org_qd:
         for docid in org_qd[qid]:
@@ -104,7 +107,9 @@ def main():
     common_utils.draw_confusion_matrix(gts, preds, args.qrel, combined_model_name)
     for cat in unmatch_dict:
         print(
-            f"Stats for {cat}. Correct judgments count: {sum(unmatch_dict[cat])}/{len(unmatch_dict[cat])}"
+            "Stats for "
+            f"{cat}. Correct judgments count: {sum(unmatch_dict[cat])}/"
+            f"{len(unmatch_dict[cat])}"
         )
 
 

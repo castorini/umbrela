@@ -3,8 +3,6 @@ import asyncio
 import os
 from typing import Any
 
-from typing_extensions import Optional
-
 from dotenv import load_dotenv
 
 from umbrela.llm_judge import LLMJudge
@@ -21,12 +19,12 @@ class GPTJudge(LLMJudge):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: Optional[str] = None,
-        prompt_type: Optional[str] = "bing",
+        prompt_file: str | None = None,
+        prompt_type: str | None = "bing",
         few_shot_count: int = 0,
         use_azure_openai: bool = False,
         max_concurrency: int = 8,
-        reasoning_effort: Optional[str] = None,
+        reasoning_effort: str | None = None,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
         self.max_concurrency = max_concurrency
@@ -49,7 +47,7 @@ class GPTJudge(LLMJudge):
             return DEFAULT_REASONING_MAX_NEW_TOKENS
         return max_new_tokens
 
-    def create_openai_client(self, use_azure_openai: bool = False):
+    def create_openai_client(self, use_azure_openai: bool = False) -> None:
         try:
             import openai
             from openai import AsyncAzureOpenAI, AsyncOpenAI
@@ -64,6 +62,7 @@ class GPTJudge(LLMJudge):
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
         self._bad_request_error = openai.BadRequestError
+        self.async_client: Any
 
         if use_azure_openai:
             if not all([azure_api_key, azure_endpoint, api_version]):
@@ -73,6 +72,7 @@ class GPTJudge(LLMJudge):
                     "`AZURE_OPENAI_API_VERSION`, and "
                     "`AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY` as fallback)."
                 )
+            assert azure_endpoint is not None
             self.async_client = AsyncAzureOpenAI(
                 api_key=azure_api_key,
                 api_version=api_version,
@@ -175,7 +175,9 @@ class GPTJudge(LLMJudge):
         )
         return self._extract_responses_text_and_reasoning(response)
 
-    async def run_gpt(self, prompt, max_new_tokens):
+    async def run_gpt(
+        self, prompt: str, max_new_tokens: int
+    ) -> tuple[str, str | None]:
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt},
@@ -213,14 +215,14 @@ class GPTJudge(LLMJudge):
 
     async def async_predict_with_llm(
         self,
-        request_dict: list,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
         prepocess: bool,
-    ):
+    ) -> list[str]:
         _, prompts = self.prepare_request_inputs(request_dict, prepocess)
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
-        async def run_prompt(prompt: str) -> str:
+        async def run_prompt(prompt: str) -> tuple[str, str | None]:
             async with semaphore:
                 return await self.run_gpt(prompt, max_new_tokens)
 
@@ -228,31 +230,39 @@ class GPTJudge(LLMJudge):
         self.reasoning_outputs = [reasoning for _, reasoning in responses]
         return [output for output, _ in responses]
 
-    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+    def judge(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
         return common_utils.run_async_blocking(
             self.async_judge(request_dict, max_new_tokens, prepocess)
         )
 
     def predict_with_llm(
         self,
-        request_dict: list,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
         prepocess: bool,
-    ):
+    ) -> list[str]:
         return common_utils.run_async_blocking(
             self.async_predict_with_llm(request_dict, max_new_tokens, prepocess)
         )
 
     async def async_judge(
-        self, request_dict, max_new_tokens=100, prepocess: bool = True
-    ):
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
         outputs = await self.async_predict_with_llm(
             request_dict, max_new_tokens, prepocess
         )
         return self.prepare_judgments(outputs)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qrel", type=str, help="qrels file", required=True)
     parser.add_argument("--result_file", type=str, help="retriever result file")
@@ -282,7 +292,10 @@ def main():
         type=str,
         default=None,
         choices=["low", "medium", "high"],
-        help="Reasoning effort for OpenAI reasoning models such as gpt-5 and o-series models.",
+        help=(
+            "Reasoning effort for OpenAI reasoning models such as gpt-5 "
+            "and o-series models."
+        ),
     )
 
     args = parser.parse_args()

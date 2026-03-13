@@ -245,7 +245,10 @@ def main() -> None:
         type=str,
         default=None,
         choices=["low", "medium", "high"],
-        help="Reasoning effort for OpenAI reasoning models such as gpt-5 and o-series models.",
+        help=(
+            "Reasoning effort for OpenAI reasoning models such as gpt-5 "
+            "and o-series models."
+        ),
     )
     parser.add_argument(
         "--use_azure_openai",

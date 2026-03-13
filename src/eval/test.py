@@ -1,4 +1,5 @@
 """A test snippet for using the package."""
+# ruff: noqa: E501
 
 import asyncio
 

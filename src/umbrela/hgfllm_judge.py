@@ -1,6 +1,6 @@
 import argparse
-from typing_extensions import Optional
 import os
+from typing import Any
 
 from dotenv import load_dotenv
 import datasets
@@ -10,6 +10,7 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorWithPadding
 
 from umbrela.llm_judge import LLMJudge
+from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
@@ -20,8 +21,8 @@ class HGFLLMJudge(LLMJudge):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: Optional[str] = None,
-        prompt_type: Optional[str] = "bing",
+        prompt_file: str | None = None,
+        prompt_type: str | None = "bing",
         few_shot_count: int = 2,
         device: str = "cuda",
         num_gpus: int = 1,
@@ -34,7 +35,7 @@ class HGFLLMJudge(LLMJudge):
 
     def predict_with_llm(
         self,
-        request_dict: list,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
         prepocess: bool,
         do_sample: bool = True,
@@ -42,7 +43,7 @@ class HGFLLMJudge(LLMJudge):
         num_beams: int = 1,
         batch_size: int = 1,
         num_workers: int = 16,
-    ):
+    ) -> list[str]:
         _, prompts = self.prepare_request_inputs(request_dict, prepocess)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
@@ -81,7 +82,7 @@ class HGFLLMJudge(LLMJudge):
             collate_fn=DataCollatorWithPadding(tokenizer, padding="longest"),
         )
 
-        outputs = []
+        outputs: list[str] = []
         for batch in tqdm(test_dataloader):
             for key in batch.keys():
                 batch[key] = batch[key].to(self._device)
@@ -109,12 +110,17 @@ class HGFLLMJudge(LLMJudge):
 
         return outputs
 
-    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+    def judge(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return self.prepare_judgments(outputs)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qrel", type=str, help="qrels file", required=True)
     parser.add_argument("--result_file", type=str, help="retriever result file")

@@ -1,14 +1,15 @@
 import argparse
 import os
+from typing import Any
 
 import vertexai
 from dotenv import load_dotenv
 from retry import retry
 from tqdm import tqdm
-from typing_extensions import Optional
 from vertexai.generative_models import GenerationConfig, GenerativeModel
 
 from umbrela.llm_judge import LLMJudge
+from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
@@ -19,21 +20,21 @@ class GeminiJudge(LLMJudge):
         self,
         qrel: str,
         model_name: str,
-        prompt_file: Optional[str] = None,
-        prompt_type: Optional[str] = "bing",
+        prompt_file: str | None = None,
+        prompt_type: str | None = "bing",
         few_shot_count: int = 0,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
         self.create_gemini_client()
 
-    def create_gemini_client(self):
+    def create_gemini_client(self) -> None:
         vertexai.init(
             project=os.environ["GCLOUD_PROJECT"], location=os.environ["GCLOUD_REGION"]
         )
         self.client = GenerativeModel(self.model_name)
 
     @retry(tries=3, delay=0.1)
-    def run_gemini(self, prompt, max_new_tokens):
+    def run_gemini(self, prompt: str, max_new_tokens: int) -> str:
         try:
             response = self.client.generate_content(
                 prompt,
@@ -48,21 +49,26 @@ class GeminiJudge(LLMJudge):
 
     def predict_with_llm(
         self,
-        request_dict: list,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
         prepocess: bool,
-    ):
+    ) -> list[str]:
         _, prompts = self.prepare_request_inputs(request_dict, prepocess)
 
         outputs = [self.run_gemini(prompt, max_new_tokens) for prompt in tqdm(prompts)]
         return outputs
 
-    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+    def judge(
+        self,
+        request_dict: dict[str, Any] | common_utils.QueryPassage,
+        max_new_tokens: int = 100,
+        prepocess: bool = True,
+    ) -> list[common_utils.Judgment]:
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return self.prepare_judgments(outputs)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qrel", type=str, help="qrels file", required=True)
     parser.add_argument("--result_file", type=str, help="retriever result file")
