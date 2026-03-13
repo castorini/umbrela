@@ -136,7 +136,7 @@ def prepare_judgments(
         parse_source = output
         if reasoning:
             parse_source = f"{output}\n{reasoning}".strip()
-        res = parse_fewshot_response(parse_source, query, passage)
+        res = parse_fewshot_response(parse_source, passage, query)
         judgment = {
             "model": model_name,
             "query": query,
