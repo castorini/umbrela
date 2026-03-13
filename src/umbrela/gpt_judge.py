@@ -12,6 +12,8 @@ from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
+DEFAULT_MAX_NEW_TOKENS = 100
+DEFAULT_REASONING_MAX_NEW_TOKENS = 4096
 
 
 class GPTJudge(LLMJudge):
@@ -38,6 +40,14 @@ class GPTJudge(LLMJudge):
             or "o4" in self.model_name
             or "gpt-5" in self.model_name
         )
+
+    def _resolve_max_new_tokens(self, max_new_tokens: int) -> int:
+        if (
+            self._uses_reasoning_style_api()
+            and max_new_tokens == DEFAULT_MAX_NEW_TOKENS
+        ):
+            return DEFAULT_REASONING_MAX_NEW_TOKENS
+        return max_new_tokens
 
     def create_openai_client(self, use_azure_openai: bool = False):
         try:
@@ -93,6 +103,7 @@ class GPTJudge(LLMJudge):
     def _build_completion_params(
         self, messages: list[dict[str, str]], max_new_tokens: int
     ) -> dict[str, Any]:
+        max_new_tokens = self._resolve_max_new_tokens(max_new_tokens)
         normalized_messages = self._normalize_messages(messages)
         uses_reasoning_style_api = self._uses_reasoning_style_api()
         temperature = 0.0
@@ -117,6 +128,7 @@ class GPTJudge(LLMJudge):
     def _build_responses_params(
         self, messages: list[dict[str, str]], max_new_tokens: int
     ) -> dict[str, Any]:
+        max_new_tokens = self._resolve_max_new_tokens(max_new_tokens)
         return {
             "model": self.engine,
             "input": self._normalize_messages(messages),

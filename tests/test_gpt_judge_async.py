@@ -109,6 +109,34 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         self.assertNotIn("max_tokens", params)
         self.assertEqual(params["temperature"], 1.0)
 
+    def test_reasoning_models_default_to_4096_max_tokens(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "gpt-5.4"
+        judge.engine = "gpt-5.4"
+
+        params = judge._build_completion_params(
+            [
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "user"},
+            ],
+            max_new_tokens=100,
+        )
+
+        self.assertEqual(params["max_completion_tokens"], 4096)
+
+    def test_non_reasoning_models_keep_default_max_tokens(self) -> None:
+        judge = self.make_judge()
+
+        params = judge._build_completion_params(
+            [
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "user"},
+            ],
+            max_new_tokens=100,
+        )
+
+        self.assertEqual(params["max_tokens"], 100)
+
     def test_o1_models_fold_system_message(self) -> None:
         judge = self.make_judge()
         judge.model_name = "o1-preview"
@@ -170,6 +198,28 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         judge.async_client.chat.completions.create.assert_not_called()
         self.assertEqual(output, "3")
         self.assertEqual(reasoning, "reason summary")
+
+    def test_reasoning_effort_defaults_to_4096_max_output_tokens(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "gpt-5.4"
+        judge.engine = "gpt-5.4"
+        judge.reasoning_effort = "medium"
+
+        response = SimpleNamespace(output_text="3", output=[])
+        judge.async_client.responses.create.return_value = response
+
+        asyncio.run(judge.run_gpt("prompt", 100))
+
+        judge.async_client.responses.create.assert_awaited_once_with(
+            model="gpt-5.4",
+            input=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "prompt"},
+            ],
+            max_output_tokens=4096,
+            timeout=30,
+            reasoning={"effort": "medium", "summary": "auto"},
+        )
 
     def test_prepare_judgments_falls_back_to_reasoning_for_score(self) -> None:
         judgments = common_utils.prepare_judgments(
