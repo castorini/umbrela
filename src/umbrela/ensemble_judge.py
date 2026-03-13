@@ -16,7 +16,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--qrel", type=str, help="qrels file", required=True)
     parser.add_argument("--result_file", type=str, help="retriever result file")
-    parser.add_argument("--prompt_file", type=str, help="prompt file")
+    parser.add_argument("--prompt_file", type=str, help="custom YAML prompt file")
     parser.add_argument(
         "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
     )

@@ -21,34 +21,13 @@ def preprocess_request_dict(request_dict: dict[str, Any]) -> QueryPassage:
     return query_passage
 
 
-def generate_prompts(
-    query_passage: Sequence[tuple[str, str]],
-    prompt_examples: str,
-    prompt_template: str,
-) -> list[str]:
-    prompts: list[str] = []
-    for q_p in query_passage:
-        prompt = prompt_template.format(
-            examples=prompt_examples,
-            query=q_p[0],
-            passage=q_p[1],
-        )
-        prompts.append(prompt)
-    return prompts
-
-
 def prepare_request_inputs(
     request_dict: dict[str, Any] | QueryPassage,
     preprocess: bool,
-    prompt_examples: str,
-    prompt_template: str,
-) -> tuple[QueryPassage, list[str]]:
+) -> QueryPassage:
     if preprocess:
-        query_passage = preprocess_request_dict(cast(dict[str, Any], request_dict))
-    else:
-        query_passage = cast(QueryPassage, request_dict)
-    prompts = generate_prompts(query_passage, prompt_examples, prompt_template)
-    return query_passage, prompts
+        return preprocess_request_dict(cast(dict[str, Any], request_dict))
+    return cast(QueryPassage, request_dict)
 
 
 def run_async_blocking(coro: Coroutine[Any, Any, T]) -> T:
