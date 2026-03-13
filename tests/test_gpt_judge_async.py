@@ -22,8 +22,14 @@ SAMPLE_REQUEST = {
 
 class GPTJudgeAsyncTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.prompt_file = tempfile.NamedTemporaryFile("w", delete=False)
-        self.prompt_file.write("{examples}\nQuery: {query}\nPassage: {passage}\n")
+        self.prompt_file = tempfile.NamedTemporaryFile(
+            "w", suffix=".yaml", delete=False
+        )
+        self.prompt_file.write(
+            'method: "custom"\n'
+            'system_message: ""\n'
+            'prefix_user: "{examples}\\nQuery: {query}\\nPassage: {passage}\\n"\n'
+        )
         self.prompt_file.flush()
         self.addCleanup(self.prompt_file.close)
         self.addCleanup(lambda: os.unlink(self.prompt_file.name))

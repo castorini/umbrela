@@ -122,6 +122,7 @@ uv run umbrela-ensemble --qrel dl19-passage --result_file <path> --prompt_type b
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 
 Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and `basic`. Set `--few_shot_count 0` for zero-shot labeling and values greater than `0` for few-shot labeling.
+Built-in prompts are now stored as YAML templates under `src/umbrela/prompts/prompt_templates/`, but they still render to the exact same flat prompt string that earlier `.txt` assets produced. Custom `--prompt_file` inputs should also be YAML templates.
 
 ### Quick end-to-end smoke test
 

@@ -135,7 +135,7 @@ async def main() -> None:
     )
     parser.add_argument(
         "--prompt_file",
-        help="Optional custom prompt template path. Overrides --prompt_type.",
+        help="Optional custom YAML prompt template path. Overrides --prompt_type.",
     )
     parser.add_argument(
         "--few_shot_count",

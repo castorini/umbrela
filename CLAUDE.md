@@ -69,16 +69,16 @@ src/umbrela/
   hgfllm_judge.py    # HGFLLMJudge: HuggingFace transformers (batched, DataLoader)
   osllm_judge.py     # OSLLMJudge: open-source via FastChat load_model
   ensemble_judge.py  # Runs multiple judges, applies majority vote
-  prompts/           # Prompt templates: qrel_{zeroshot,fewshot}_{bing,basic}.txt
+  prompts/           # YAML prompt templates + loader; runtime prompt surface stays a single flat string
   utils/
     qrel_utils.py    # Qrel I/O, pyserini integration, passage retrieval, nDCG scoring
-    common_utils.py  # Prompt generation, response parsing, qrel writing
+    common_utils.py  # Request preprocessing, response parsing, qrel writing
 src/eval/test.py     # Example usage snippet
 ```
 
 ### Key Design Patterns
 
-- `LLMJudge` (abstract): `__init__` loads prompt template; subclasses implement `predict_with_llm()` and `judge()`. `evalute_results_with_qrel()` orchestrates the full pipeline: generate holes → call judge → write modified qrel → compute Cohen's kappa and nDCG.
+- `LLMJudge` (abstract): `__init__` resolves a YAML-backed prompt template and preserves the historical single-string prompt surface; subclasses implement `predict_with_llm()` and `judge()`. `evalute_results_with_qrel()` orchestrates the full pipeline: generate holes → call judge → write modified qrel → compute Cohen's kappa and nDCG.
 - `judge()` returns a list of dicts with keys: `model`, `query`, `passage`, `prompt`, `prediction`, `judgment` (int 0-3), `result_status` (1 if parseable, 0 if fallback).
 - Passage retrieval uses pyserini's `LuceneIndexReader` for MS MARCO v1 (dl19/dl20) and direct file access for MS MARCO v2 (dl21-23).
 - Modified qrels are written to `modified_qrels/` directory; confusion matrices to `conf_matrix/`.
