@@ -119,20 +119,24 @@ class GPTJudge(LLMJudge):
                 response = await self.async_client.chat.completions.create(
                     **self._build_completion_params(messages, max_new_tokens)
                 )
-                return (
+                output = (
                     response.choices[0].message.content.lower()
                     if response.choices[0].message.content
                     else ""
                 )
+                reasoning = common_utils.extract_reasoning_content(
+                    response.choices[0].message
+                )
+                return output, reasoning
             except self._bad_request_error as e:
                 print(f"Encountered {e} for {prompt}")
-                return ""
+                return "", None
             except Exception:
                 if attempt == 2:
                     raise
                 await asyncio.sleep(0.1)
 
-        return ""
+        return "", None
 
     async def async_predict_with_llm(
         self,
@@ -147,7 +151,9 @@ class GPTJudge(LLMJudge):
             async with semaphore:
                 return await self.run_gpt(prompt, max_new_tokens)
 
-        return await asyncio.gather(*(run_prompt(prompt) for prompt in prompts))
+        responses = await asyncio.gather(*(run_prompt(prompt) for prompt in prompts))
+        self.reasoning_outputs = [reasoning for _, reasoning in responses]
+        return [output for output, _ in responses]
 
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         return common_utils.run_async_blocking(

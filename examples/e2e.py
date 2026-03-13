@@ -67,6 +67,7 @@ def print_results(
     request: dict,
     judgments: list[dict],
     show_raw: bool = False,
+    show_reasoning: bool = False,
     passage_width: int = 100,
 ) -> None:
     """Render readable per-document results for manual smoke tests."""
@@ -94,6 +95,10 @@ def print_results(
         print("   passage:")
         for line in passage.splitlines():
             print(f"     {line}")
+        if show_reasoning and judgment.get("reasoning"):
+            print("   reasoning:")
+            for line in fill(judgment["reasoning"], width=passage_width).splitlines():
+                print(f"     {line}")
         if show_raw:
             print(f"   raw={judgment['prediction']!r}")
         print()
@@ -152,6 +157,11 @@ async def main() -> None:
         help="Print raw model responses for each passage.",
     )
     parser.add_argument(
+        "--print_reasoning",
+        action="store_true",
+        help="Print model reasoning content when the provider returns it.",
+    )
+    parser.add_argument(
         "--use_azure_openai",
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
@@ -193,6 +203,7 @@ async def main() -> None:
         request,
         judgments,
         show_raw=args.print_raw,
+        show_reasoning=args.print_reasoning,
         passage_width=args.passage_width,
     )
 

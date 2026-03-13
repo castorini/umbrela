@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from umbrela.gpt_judge import GPTJudge
+from umbrela.utils import common_utils
 
 
 SAMPLE_REQUEST = {
@@ -44,15 +45,15 @@ class GPTJudgeAsyncTests(unittest.TestCase):
     def test_async_judge_preserves_input_order(self) -> None:
         judge = self.make_judge()
 
-        async def fake_run_gpt(prompt: str, max_new_tokens: int) -> str:
+        async def fake_run_gpt(prompt: str, max_new_tokens: int) -> tuple[str, str | None]:
             if "first passage" in prompt:
                 await asyncio.sleep(0.03)
-                return "2"
+                return "2", "first reasoning"
             if "second passage" in prompt:
                 await asyncio.sleep(0.01)
-                return "1"
+                return "1", None
             await asyncio.sleep(0.02)
-            return "3"
+            return "3", "third reasoning"
 
         judge.run_gpt = fake_run_gpt  # type: ignore[method-assign]
         judgments = asyncio.run(judge.async_judge(SAMPLE_REQUEST))
@@ -63,6 +64,10 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             "third passage",
         ])
         self.assertEqual([item["judgment"] for item in judgments], [2, 1, 3])
+        self.assertEqual(
+            [item["reasoning"] for item in judgments],
+            ["first reasoning", None, "third reasoning"],
+        )
         self.assertTrue(all("result_status" in item for item in judgments))
 
     def test_sync_judge_uses_async_path(self) -> None:
@@ -79,6 +84,7 @@ class GPTJudgeAsyncTests(unittest.TestCase):
 
         self.assertEqual([item["judgment"] for item in judgments], [0, 1, 2])
         self.assertEqual(judgments[1]["passage"], "second passage")
+        self.assertIsNone(judgments[1]["reasoning"])
 
     def test_gpt5_uses_max_completion_tokens(self) -> None:
         judge = self.make_judge()
@@ -115,6 +121,16 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         self.assertEqual(params["max_completion_tokens"], 50)
         self.assertNotIn("max_tokens", params)
         self.assertEqual(params["temperature"], 1.0)
+
+    def test_extract_reasoning_content_handles_message_shapes(self) -> None:
+        self.assertEqual(
+            common_utils.extract_reasoning_content({"reasoning": "chain"}),
+            "chain",
+        )
+        self.assertEqual(
+            common_utils.extract_reasoning_content({"reasoning_content": "scratch"}),
+            "scratch",
+        )
 
 
 if __name__ == "__main__":

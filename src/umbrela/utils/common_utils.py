@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 import threading
-from typing import Awaitable, TypeVar
+from typing import Any, Awaitable, TypeVar
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
@@ -111,9 +111,27 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
     return int(answer), valid_res
 
 
-def prepare_judgments(outputs, query_passage, prompts, model_name):
+def extract_reasoning_content(message: Any) -> str | None:
+    if hasattr(message, "reasoning") and message.reasoning:
+        return str(message.reasoning)
+    if hasattr(message, "reasoning_content") and message.reasoning_content:
+        return str(message.reasoning_content)
+    if isinstance(message, dict) and message.get("reasoning"):
+        return str(message["reasoning"])
+    if isinstance(message, dict) and message.get("reasoning_content"):
+        return str(message["reasoning_content"])
+    return None
+
+
+def prepare_judgments(
+    outputs, query_passage, prompts, model_name, reasoning_outputs=None
+):
     judgments = []
-    for output, (query, passage), prompt in zip(outputs, query_passage, prompts):
+    if reasoning_outputs is None:
+        reasoning_outputs = [None] * len(outputs)
+    for output, reasoning, (query, passage), prompt in zip(
+        outputs, reasoning_outputs, query_passage, prompts
+    ):
         res = parse_fewshot_response(output, query, passage)
         judgment = {
             "model": model_name,
@@ -121,6 +139,7 @@ def prepare_judgments(outputs, query_passage, prompts, model_name):
             "passage": passage,
             "prompt": prompt,
             "prediction": output,
+            "reasoning": reasoning,
             "judgment": res[0],
             "result_status": res[1],
         }

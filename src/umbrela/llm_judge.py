@@ -79,7 +79,11 @@ class LLMJudge(ABC):
 
     def prepare_judgments(self, outputs):
         return common_utils.prepare_judgments(
-            outputs, self.query_passage, self.prompts, self.model_name
+            outputs,
+            self.query_passage,
+            self.prompts,
+            self.model_name,
+            getattr(self, "reasoning_outputs", None),
         )
 
     @abstractmethod
