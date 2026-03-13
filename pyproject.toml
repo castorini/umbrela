@@ -61,11 +61,7 @@ all = [
 ]
 
 [project.scripts]
-umbrela-ensemble = "umbrela.ensemble_judge:main"
-umbrela-gemini = "umbrela.gemini_judge:main"
-umbrela-gpt = "umbrela.gpt_judge:main"
-umbrela-hf = "umbrela.hgfllm_judge:main"
-umbrela-os = "umbrela.osllm_judge:main"
+umbrela = "umbrela.cli.main:main"
 
 [dependency-groups]
 dev = [
