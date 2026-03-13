@@ -1,8 +1,13 @@
-import re
+import asyncio
 import os
+import re
+import threading
+from typing import Awaitable, TypeVar
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
+
+T = TypeVar("T")
 
 
 def preprocess_request_dict(request_dict):
@@ -23,6 +28,40 @@ def generate_prompts(query_passage, prompt_examples, prompt_template):
         )
         prompts.append(prompt)
     return prompts
+
+
+def prepare_request_inputs(request_dict, preprocess, prompt_examples, prompt_template):
+    if preprocess:
+        query_passage = preprocess_request_dict(request_dict)
+    else:
+        query_passage = request_dict
+    prompts = generate_prompts(query_passage, prompt_examples, prompt_template)
+    return query_passage, prompts
+
+
+def run_async_blocking(coro: Awaitable[T]) -> T:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result: dict[str, T] = {}
+    error: dict[str, BaseException] = {}
+
+    def runner() -> None:
+        try:
+            result["value"] = asyncio.run(coro)
+        except BaseException as exc:
+            error["error"] = exc
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "error" in error:
+        raise error["error"]
+
+    return result["value"]
 
 
 def parse_fewshot_response(response: str, passage: str, query: str) -> int:

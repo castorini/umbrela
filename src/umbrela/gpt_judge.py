@@ -1,12 +1,10 @@
 import argparse
+import asyncio
 import os
+
 from typing_extensions import Optional
 
 from dotenv import load_dotenv
-import openai
-from openai import AzureOpenAI, OpenAI
-from retry import retry
-from tqdm import tqdm
 
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
@@ -24,15 +22,27 @@ class GPTJudge(LLMJudge):
         prompt_type: Optional[str] = "bing",
         few_shot_count: int = 0,
         use_azure_openai: bool = False,
+        max_concurrency: int = 8,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
+        self.max_concurrency = max_concurrency
         self.create_openai_client(use_azure_openai=use_azure_openai)
 
     def create_openai_client(self, use_azure_openai: bool = False):
+        try:
+            import openai
+            from openai import AsyncAzureOpenAI, AsyncOpenAI
+        except ImportError as exc:
+            raise ImportError(
+                "GPTJudge requires the OpenAI SDK. Install umbrela with "
+                "`uv sync --extra cloud`."
+            ) from exc
+
         openai_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
         azure_api_key = os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
+        self._bad_request_error = openai.BadRequestError
 
         if use_azure_openai:
             if not all([azure_api_key, azure_endpoint, api_version]):
@@ -42,7 +52,7 @@ class GPTJudge(LLMJudge):
                     "`AZURE_OPENAI_API_VERSION`, and "
                     "`AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY` as fallback)."
                 )
-            self.client = AzureOpenAI(
+            self.async_client = AsyncAzureOpenAI(
                 api_key=azure_api_key,
                 api_version=api_version,
                 azure_endpoint=azure_endpoint,
@@ -52,35 +62,60 @@ class GPTJudge(LLMJudge):
         else:
             if openai_api_key is None:
                 raise KeyError("OPENAI_API_KEY")
-            self.client = OpenAI(api_key=openai_api_key)
+            self.async_client = AsyncOpenAI(api_key=openai_api_key)
             self.engine = self.model_name
             self.use_azure_ai = False
 
-    @retry(tries=3, delay=0.1)
-    def run_gpt(self, prompt, max_new_tokens):
+    async def run_gpt(self, prompt, max_new_tokens):
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt},
         ]
-        try:
-            response = self.client.chat.completions.create(
-                model=self.engine,
-                messages=messages,
-                max_tokens=max_new_tokens,
-                temperature=0,
-                top_p=1,
-                frequency_penalty=0.5,
-                presence_penalty=0,
-            )
-            output = (
-                response.choices[0].message.content.lower()
-                if response.choices[0].message.content
-                else ""
-            )
-        except openai.BadRequestError as e:
-            print(f"Encountered {e} for {prompt}")
-            output = ""
-        return output
+        for attempt in range(3):
+            try:
+                response = await self.async_client.chat.completions.create(
+                    model=self.engine,
+                    messages=messages,
+                    max_tokens=max_new_tokens,
+                    temperature=0,
+                    top_p=1,
+                    frequency_penalty=0.5,
+                    presence_penalty=0,
+                )
+                return (
+                    response.choices[0].message.content.lower()
+                    if response.choices[0].message.content
+                    else ""
+                )
+            except self._bad_request_error as e:
+                print(f"Encountered {e} for {prompt}")
+                return ""
+            except Exception:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.1)
+
+        return ""
+
+    async def async_predict_with_llm(
+        self,
+        request_dict: list,
+        max_new_tokens: int,
+        prepocess: bool,
+    ):
+        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
+        semaphore = asyncio.Semaphore(self.max_concurrency)
+
+        async def run_prompt(prompt: str) -> str:
+            async with semaphore:
+                return await self.run_gpt(prompt, max_new_tokens)
+
+        return await asyncio.gather(*(run_prompt(prompt) for prompt in prompts))
+
+    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
+        return common_utils.run_async_blocking(
+            self.async_judge(request_dict, max_new_tokens, prepocess)
+        )
 
     def predict_with_llm(
         self,
@@ -88,24 +123,17 @@ class GPTJudge(LLMJudge):
         max_new_tokens: int,
         prepocess: bool,
     ):
-        if prepocess:
-            self.query_passage = common_utils.preprocess_request_dict(request_dict)
-        else:
-            self.query_passage = request_dict
-        self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self._prompt_template
+        return common_utils.run_async_blocking(
+            self.async_predict_with_llm(request_dict, max_new_tokens, prepocess)
         )
 
-        outputs = [
-            self.run_gpt(prompt, max_new_tokens) for prompt in tqdm(self.prompts)
-        ]
-        return outputs
-
-    def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
-        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
-        return common_utils.prepare_judgments(
-            outputs, self.query_passage, self.prompts, self.model_name
+    async def async_judge(
+        self, request_dict, max_new_tokens=100, prepocess: bool = True
+    ):
+        outputs = await self.async_predict_with_llm(
+            request_dict, max_new_tokens, prepocess
         )
+        return self.prepare_judgments(outputs)
 
 
 def main():
@@ -127,6 +155,12 @@ def main():
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
     )
+    parser.add_argument(
+        "--max_concurrency",
+        type=int,
+        default=8,
+        help="Maximum number of concurrent OpenAI requests.",
+    )
 
     args = parser.parse_args()
     load_dotenv()
@@ -138,6 +172,7 @@ def main():
         args.prompt_type,
         args.few_shot_count,
         use_azure_openai=args.use_azure_openai,
+        max_concurrency=args.max_concurrency,
     )
     judge.evalute_results_with_qrel(
         args.result_file,

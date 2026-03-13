@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import asyncio
 from importlib import resources
 import os
 import statistics
@@ -65,13 +66,42 @@ class LLMJudge(ABC):
     def display_prompt_template(self):
         print(self._prompt_template)
 
+    def prepare_request_inputs(self, request_dict, prepocess):
+        query_passage, prompts = common_utils.prepare_request_inputs(
+            request_dict,
+            prepocess,
+            self.prompt_examples,
+            self._prompt_template,
+        )
+        self.query_passage = query_passage
+        self.prompts = prompts
+        return query_passage, prompts
+
+    def prepare_judgments(self, outputs):
+        return common_utils.prepare_judgments(
+            outputs, self.query_passage, self.prompts, self.model_name
+        )
+
     @abstractmethod
     def predict_with_llm(self, request_dict, max_new_tokens, prepocess):
         pass
 
+    async def async_predict_with_llm(self, request_dict, max_new_tokens, prepocess):
+        return await asyncio.to_thread(
+            self.predict_with_llm, request_dict, max_new_tokens, prepocess
+        )
+
     @abstractmethod
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         pass
+
+    async def async_judge(
+        self, request_dict, max_new_tokens=100, prepocess: bool = True
+    ):
+        outputs = await self.async_predict_with_llm(
+            request_dict, max_new_tokens, prepocess
+        )
+        return self.prepare_judgments(outputs)
 
     def calculate_kappa(self, gts, preds):
         print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
