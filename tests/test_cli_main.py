@@ -269,6 +269,7 @@ def test_doctor_returns_json_envelope(capsys: Any) -> None:
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "doctor"
     assert "python_version" in output["metrics"]
+    assert "openrouter" in output["metrics"]["provider_keys"]
 
 
 def test_validate_judge_direct_returns_json_envelope(capsys: Any) -> None:

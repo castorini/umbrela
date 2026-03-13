@@ -84,6 +84,7 @@ def build_judge(args: argparse.Namespace) -> Any:
             prompt_type=prompt_type,
             few_shot_count=args.few_shot_count,
             use_azure_openai=args.use_azure_openai,
+            use_openrouter=args.use_openrouter,
             max_concurrency=args.max_concurrency,
             reasoning_effort=args.reasoning_effort,
         )
@@ -254,6 +255,11 @@ def main() -> None:
         "--use_azure_openai",
         action="store_true",
         help="Use Azure OpenAI instead of the default public OpenAI API.",
+    )
+    parser.add_argument(
+        "--use_openrouter",
+        action="store_true",
+        help="Use OpenRouter instead of the default public OpenAI API.",
     )
     parser.add_argument(
         "--passage_width",

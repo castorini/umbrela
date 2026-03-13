@@ -36,7 +36,9 @@ class GPTJudgeAsyncTests(unittest.TestCase):
 
     def make_judge(self) -> GPTJudge:
         def fake_create_openai_client(
-            self: GPTJudge, use_azure_openai: bool = False
+            self: GPTJudge,
+            use_azure_openai: bool = False,
+            use_openrouter: bool = False,
         ) -> None:
             self.async_client = cast(
                 Any,
@@ -49,6 +51,7 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             )
             self.engine = self.model_name
             self.use_azure_ai = use_azure_openai
+            self.use_openrouter = use_openrouter
 
         with patch.object(GPTJudge, "create_openai_client", fake_create_openai_client):
             return GPTJudge(
@@ -241,6 +244,67 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             timeout=30,
             reasoning={"effort": "medium", "summary": "auto"},
         )
+
+    def test_openrouter_mode_uses_openrouter_base_url(self) -> None:
+        client_kwargs: dict[str, Any] = {}
+
+        def fake_async_openai(**kwargs: Any) -> Any:
+            client_kwargs.update(kwargs)
+            return SimpleNamespace(
+                responses=SimpleNamespace(create=AsyncMock()),
+                chat=SimpleNamespace(completions=SimpleNamespace(create=AsyncMock())),
+            )
+
+        with (
+            patch.dict(os.environ, {"OPENROUTER_API_KEY": "router-key"}, clear=False),
+            patch("openai.AsyncOpenAI", side_effect=fake_async_openai),
+        ):
+            judge = GPTJudge(
+                qrel="dl19-passage",
+                model_name="openai/gpt-4o-mini",
+                prompt_file=self.prompt_file.name,
+                prompt_type=None,
+                few_shot_count=0,
+                use_openrouter=True,
+            )
+
+        self.assertEqual(client_kwargs["api_key"], "router-key")
+        self.assertEqual(
+            client_kwargs["base_url"], "https://openrouter.ai/api/v1"
+        )
+        self.assertTrue(judge.use_openrouter)
+
+    def test_openrouter_fallback_is_used_when_openai_key_is_missing(self) -> None:
+        client_kwargs: dict[str, Any] = {}
+
+        def fake_async_openai(**kwargs: Any) -> Any:
+            client_kwargs.update(kwargs)
+            return SimpleNamespace(
+                responses=SimpleNamespace(create=AsyncMock()),
+                chat=SimpleNamespace(completions=SimpleNamespace(create=AsyncMock())),
+            )
+
+        with (
+            patch.dict(
+                os.environ,
+                {"OPENROUTER_API_KEY": "router-key", "OPENAI_API_KEY": ""},
+                clear=False,
+            ),
+            patch("openai.AsyncOpenAI", side_effect=fake_async_openai),
+        ):
+            judge = GPTJudge(
+                qrel="dl19-passage",
+                model_name="anthropic/claude-3.5-sonnet",
+                prompt_file=self.prompt_file.name,
+                prompt_type=None,
+                few_shot_count=0,
+            )
+
+        self.assertEqual(client_kwargs["api_key"], "router-key")
+        self.assertEqual(
+            client_kwargs["base_url"], "https://openrouter.ai/api/v1"
+        )
+        self.assertTrue(judge.use_openrouter)
 
     def test_prepare_judgments_falls_back_to_reasoning_for_score(self) -> None:
         judgments = common_utils.prepare_judgments(

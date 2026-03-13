@@ -224,6 +224,7 @@ def build_parser() -> CLIArgumentParser:
     )
     judge_parser.add_argument("--max-concurrency", type=int, default=8)
     judge_parser.add_argument("--use-azure-openai", action="store_true")
+    judge_parser.add_argument("--use-openrouter", action="store_true")
     judge_parser.add_argument("--reasoning-effort", choices=["low", "medium", "high"])
     judge_parser.add_argument("--device", type=str, default="cuda")
     judge_parser.add_argument("--include-reasoning", action="store_true")
@@ -251,6 +252,7 @@ def build_parser() -> CLIArgumentParser:
     evaluate_parser.add_argument("--model-names", type=str)
     evaluate_parser.add_argument("--max-concurrency", type=int, default=8)
     evaluate_parser.add_argument("--use-azure-openai", action="store_true")
+    evaluate_parser.add_argument("--use-openrouter", action="store_true")
     evaluate_parser.add_argument(
         "--reasoning-effort", choices=["low", "medium", "high"]
     )

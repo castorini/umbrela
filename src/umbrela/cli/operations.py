@@ -38,6 +38,7 @@ def create_judge(args: Any) -> Any:
             prompt_type,
             few_shot_count,
             use_azure_openai=getattr(args, "use_azure_openai", False),
+            use_openrouter=getattr(args, "use_openrouter", False),
             max_concurrency=getattr(args, "max_concurrency", 8),
             reasoning_effort=getattr(args, "reasoning_effort", None),
         )

@@ -166,6 +166,7 @@ def doctor_report() -> dict[str, Any]:
         "env_file_present": env_path.exists(),
         "provider_keys": {
             "openai": bool(os.getenv("OPENAI_API_KEY")),
+            "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
             "azure": bool(
                 os.getenv("AZURE_OPENAI_API_BASE")
                 and os.getenv("AZURE_OPENAI_API_VERSION")

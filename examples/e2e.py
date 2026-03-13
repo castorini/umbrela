@@ -120,7 +120,7 @@ async def main() -> None:
     parser.add_argument(
         "--model",
         default="gpt-4o",
-        help="OpenAI or Azure OpenAI model name to use.",
+        help="OpenAI, OpenRouter, or Azure OpenAI model name to use.",
     )
     parser.add_argument(
         "--qrel",
@@ -186,6 +186,11 @@ async def main() -> None:
         help="Use Azure OpenAI instead of the default public OpenAI API.",
     )
     parser.add_argument(
+        "--use_openrouter",
+        action="store_true",
+        help="Use OpenRouter instead of the default public OpenAI API.",
+    )
+    parser.add_argument(
         "--passage_width",
         type=int,
         default=100,
@@ -220,6 +225,7 @@ async def main() -> None:
         prompt_type=prompt_type,
         few_shot_count=args.few_shot_count,
         use_azure_openai=args.use_azure_openai,
+        use_openrouter=args.use_openrouter,
         max_concurrency=args.max_concurrency,
         reasoning_effort=reasoning_effort,
     )

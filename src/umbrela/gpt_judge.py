@@ -23,13 +23,18 @@ class GPTJudge(LLMJudge):
         prompt_type: str | None = "bing",
         few_shot_count: int = 0,
         use_azure_openai: bool = False,
+        use_openrouter: bool = False,
         max_concurrency: int = 8,
         reasoning_effort: str | None = None,
     ) -> None:
         super().__init__(qrel, model_name, prompt_file, prompt_type, few_shot_count)
         self.max_concurrency = max_concurrency
         self.reasoning_effort = reasoning_effort
-        self.create_openai_client(use_azure_openai=use_azure_openai)
+        self.use_openrouter = use_openrouter
+        self.create_openai_client(
+            use_azure_openai=use_azure_openai,
+            use_openrouter=use_openrouter,
+        )
 
     def _uses_reasoning_style_api(self) -> bool:
         return (
@@ -47,7 +52,9 @@ class GPTJudge(LLMJudge):
             return DEFAULT_REASONING_MAX_NEW_TOKENS
         return max_new_tokens
 
-    def create_openai_client(self, use_azure_openai: bool = False) -> None:
+    def create_openai_client(
+        self, use_azure_openai: bool = False, use_openrouter: bool = False
+    ) -> None:
         try:
             import openai
             from openai import AsyncAzureOpenAI, AsyncOpenAI
@@ -58,11 +65,18 @@ class GPTJudge(LLMJudge):
             ) from exc
 
         openai_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         azure_api_key = os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
         self._bad_request_error = openai.BadRequestError
         self.async_client: Any
+
+        if use_azure_openai and use_openrouter:
+            raise ValueError(
+                "OpenRouter and Azure OpenAI are mutually exclusive provider "
+                "flags. Set only one of `use_azure_openai` or `use_openrouter`."
+            )
 
         if use_azure_openai:
             if not all([azure_api_key, azure_endpoint, api_version]):
@@ -79,11 +93,29 @@ class GPTJudge(LLMJudge):
                 azure_endpoint=azure_endpoint,
             )
             self.use_azure_ai = True
+            self.use_openrouter = False
             self.engine = os.environ["DEPLOYMENT_NAME"]
         else:
-            if openai_api_key is None:
-                raise KeyError("OPENAI_API_KEY")
-            self.async_client = AsyncOpenAI(api_key=openai_api_key)
+            provider_api_key = openai_api_key
+            client_kwargs: dict[str, Any] = {}
+
+            if use_openrouter:
+                if openrouter_api_key is None:
+                    raise KeyError("OPENROUTER_API_KEY")
+                provider_api_key = openrouter_api_key
+                client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
+            elif provider_api_key is None and openrouter_api_key is not None:
+                provider_api_key = openrouter_api_key
+                client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
+                self.use_openrouter = True
+
+            if provider_api_key is None:
+                raise KeyError("OPENAI_API_KEY or OPENROUTER_API_KEY")
+
+            self.async_client = AsyncOpenAI(
+                api_key=provider_api_key,
+                **client_kwargs,
+            )
             self.engine = self.model_name
             self.use_azure_ai = False
 
@@ -280,6 +312,11 @@ def main() -> None:
         help="Use Azure OpenAI instead of the default public OpenAI API.",
     )
     parser.add_argument(
+        "--use_openrouter",
+        action="store_true",
+        help="Use OpenRouter instead of the default public OpenAI API.",
+    )
+    parser.add_argument(
         "--max_concurrency",
         type=int,
         default=8,
@@ -306,6 +343,7 @@ def main() -> None:
         args.prompt_type,
         args.few_shot_count,
         use_azure_openai=args.use_azure_openai,
+        use_openrouter=args.use_openrouter,
         max_concurrency=args.max_concurrency,
         reasoning_effort=args.reasoning_effort,
     )
