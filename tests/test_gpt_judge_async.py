@@ -171,6 +171,18 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         self.assertEqual(output, "3")
         self.assertEqual(reasoning, "reason summary")
 
+    def test_prepare_judgments_falls_back_to_reasoning_for_score(self) -> None:
+        judgments = common_utils.prepare_judgments(
+            outputs=[""],
+            query_passage=[("query text", "passage text")],
+            prompts=["prompt"],
+            model_name="gpt-5.4",
+            reasoning_outputs=["I conclude with a score of 2."],
+        )
+
+        self.assertEqual(judgments[0]["judgment"], 2)
+        self.assertEqual(judgments[0]["result_status"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

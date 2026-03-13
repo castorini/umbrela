@@ -83,6 +83,12 @@ def parse_fewshot_response(response: str, passage: str, query: str) -> int:
         r'"o_score"\s*[:-=]?\s*(0|1|2|3)',
         r"output score is (0|1|2|3)",
         r"score is (0|1|2|3)",
+        r"score of\s+(0|1|2|3)",
+        r"assign(?:ing)?\s+(?:it\s+)?(?:a\s+)?score of\s+(0|1|2|3)",
+        r"conclude(?:s|d)?\s+with\s+(?:a\s+)?score of\s+(0|1|2|3)",
+        r"give(?:n)?\s+(?:it\s+)?(?:a\s+)?score of\s+(0|1|2|3)",
+        r"i (?:would )?(?:give|assign)\s+(?:it\s+)?(?:a\s+)?score of\s+(0|1|2|3)",
+        r"score:\s*(0|1|2|3)",
         r"[a-zA-Z]+\s+is\s+(0|1|2|3)\s",
         r"relevance category\s*[:-=]?\s*(0|1|2|3)",
         r"relevance category\s*[:-=]?\s*(0|1|2|3)",
@@ -132,7 +138,10 @@ def prepare_judgments(
     for output, reasoning, (query, passage), prompt in zip(
         outputs, reasoning_outputs, query_passage, prompts
     ):
-        res = parse_fewshot_response(output, query, passage)
+        parse_source = output
+        if reasoning:
+            parse_source = f"{output}\n{reasoning}".strip()
+        res = parse_fewshot_response(parse_source, query, passage)
         judgment = {
             "model": model_name,
             "query": query,
