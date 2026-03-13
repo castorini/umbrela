@@ -35,29 +35,37 @@ Additional setup notes:
 
 ## Running Evaluations
 
-Each judge module is also a CLI entry point:
+Use the packaged `umbrela` CLI instead of backend-specific entry points:
 
 ```bash
-# GPT (OpenAI/Azure)
-uv run umbrela-gpt --qrel dl19-passage --result_file <path> --prompt_type bing --model gpt-4o --few_shot_count 0
+# Direct minimal JSON input
+uv run umbrela judge \
+  --backend gpt \
+  --model gpt-4o \
+  --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
+  --output json
 
-# Gemini (Vertex AI)
-uv run umbrela-gemini --qrel dl19-passage --result_file <path> --prompt_type bing --model gemini-1.0-pro --few_shot_count 0
+# Batch evaluation against a qrel and retrieval run
+uv run umbrela evaluate \
+  --backend gpt \
+  --model gpt-4o \
+  --qrel dl19-passage \
+  --result-file <path> \
+  --prompt-type bing \
+  --few-shot-count 0 \
+  --output json
 
-# Open-source via HuggingFace
-uv run umbrela-hf --qrel dl19-passage --result_file <path> --prompt_type bing --model meta-llama/Llama-2-7b --few_shot_count 0 --device cuda
-
-# Open-source via FastChat
-uv run umbrela-os --qrel dl19-passage --result_file <path> --prompt_type bing --model lmsys/vicuna-7b-v1.5 --few_shot_count 0
-
-# Ensemble (majority vote across multiple judges)
-uv run umbrela-ensemble --qrel dl19-passage --result_file <path> --prompt_type bing \
-  --llm_judges "GPTJudge,GeminiJudge" --model_names "gpt-4o,gemini-1.0-pro" --few_shot_count 0
+# Introspection and validation
+uv run umbrela describe judge --output json
+uv run umbrela schema judge-direct-input
+uv run umbrela doctor --output json
 ```
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 
-Prompt types: `bing` (default, mirrors Bing BRELA prompt) or `basic`. Combined with `--few_shot_count`: 0 = zeroshot, >0 = fewshot.
+Prompt types: `bing` (default, mirrors Bing BRELA prompt) or `basic`.
+Combined with `--few-shot-count`: 0 = zero-shot, values greater than 0 =
+few-shot.
 
 ## Architecture
 

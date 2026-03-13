@@ -53,7 +53,7 @@ If you prefer not to activate the virtual environment, run commands through `uv 
 
 ```bash
 uv run python examples/e2e.py --help
-uv run umbrela-gpt --help
+uv run umbrela --help
 uv run pre-commit run --all-files
 ```
 
@@ -99,30 +99,82 @@ Only set the variables required by the judge you are using.
 
 ### CLI usage
 
-Each judge has a short `uv run` entry point:
+`umbrela` is the canonical command-line interface for this repository.
+Use `uv run umbrela ...` if the virtual environment is not activated.
+
+Direct minimal JSON input:
 
 ```bash
-# GPT (OpenAI or Azure OpenAI)
-uv run umbrela-gpt --qrel dl19-passage --result_file <path> --prompt_type bing --model gpt-4o --few_shot_count 0
+uv run umbrela judge \
+  --backend gpt \
+  --model gpt-4o \
+  --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
+  --output json
+```
 
-# Gemini (Vertex AI)
-uv run umbrela-gemini --qrel dl19-passage --result_file <path> --prompt_type bing --model gemini-1.0-pro --few_shot_count 0
+Direct input from standard input:
 
-# Open-source via Hugging Face transformers
-uv run umbrela-hf --qrel dl19-passage --result_file <path> --prompt_type bing --model meta-llama/Llama-2-7b --few_shot_count 0 --device cuda
+```bash
+echo '{"query":"anthropological definition of environment","candidates":["Environmental anthropology examines relationships between humans and their environment across space and time."]}' \
+  | uv run umbrela judge --backend gpt --model gpt-4o --stdin --output json
+```
 
-# Open-source via FastChat
-uv run umbrela-os --qrel dl19-passage --result_file <path> --prompt_type bing --model lmsys/vicuna-7b-v1.5 --few_shot_count 0
+Batch judging:
 
-# Ensemble
-uv run umbrela-ensemble --qrel dl19-passage --result_file <path> --prompt_type bing \
-  --llm_judges "GPTJudge,GeminiJudge" --model_names "gpt-4o,gemini-1.0-pro" --few_shot_count 0
+```bash
+uv run umbrela judge \
+  --backend gemini \
+  --model gemini-1.5-pro \
+  --input-file requests.jsonl \
+  --output-file judgments.jsonl
+```
+
+Qrel-backed evaluation:
+
+```bash
+uv run umbrela evaluate \
+  --backend gpt \
+  --model gpt-4o \
+  --qrel dl19-passage \
+  --result-file run.trec \
+  --prompt-type bing \
+  --few-shot-count 0 \
+  --output json
+```
+
+CLI introspection:
+
+```bash
+uv run umbrela describe judge --output json
+uv run umbrela schema judge-direct-input
+uv run umbrela validate judge \
+  --input-json '{"query":"q","candidates":["p1","p2"]}' \
+  --output json
+uv run umbrela doctor --output json
 ```
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 
-Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and `basic`. Set `--few_shot_count 0` for zero-shot labeling and values greater than `0` for few-shot labeling.
-Built-in prompts are now stored as YAML templates under `src/umbrela/prompts/prompt_templates/`, but they still render to the exact same flat prompt string that earlier `.txt` assets produced. Custom `--prompt_file` inputs should also be YAML templates.
+Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and
+`basic`. Set `--few-shot-count 0` for zero-shot labeling and values greater
+than `0` for few-shot labeling. Built-in prompts are stored as YAML templates
+under `src/umbrela/prompts/prompt_templates/`, but they still render to the
+exact same flat prompt string that earlier `.txt` assets produced. Custom
+`--prompt-file` inputs should also be YAML templates.
+
+Machine-readable output uses the shared `castorini.cli.v1` envelope. The
+`judge` command includes Umbrela's legacy judgment list inside that envelope,
+while `evaluate` includes artifact paths and evaluation metrics.
+
+Migration examples:
+
+```bash
+# old
+uv run umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
+
+# new
+uv run umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
+```
 
 ### Quick end-to-end smoke test
 
