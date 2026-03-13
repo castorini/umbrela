@@ -265,3 +265,79 @@ def test_evaluate_command_reuses_existing_modified_qrel_without_rerunning_judge(
     artifact_paths = [artifact["path"] for artifact in output["artifacts"]]
     assert "modified_qrels/sample.q_model_0123_0_1.txt" in artifact_paths
     assert any(path.endswith(".png") for path in artifact_paths)
+
+
+def test_ensemble_evaluate_command_combines_votes_and_deduplicates_artifacts(
+    tmp_path: Path,
+    monkeypatch: Any,
+    capsys: Any,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    qrel_path = FIXTURE_DIR / "sample.qrels"
+    run_path = FIXTURE_DIR / "sample.run"
+    shared_artifact = tmp_path / "shared.txt"
+    shared_artifact.write_text("shared", encoding="utf-8")
+    result_one = tmp_path / "judge_one.txt"
+    result_one.write_text("1 0 d0 2\n1 0 d1 1\n1 0 d2 2\n1 0 d3 3\n", encoding="utf-8")
+    result_two = tmp_path / "judge_two.txt"
+    result_two.write_text("1 0 d0 1\n1 0 d1 1\n1 0 d2 3\n1 0 d3 3\n", encoding="utf-8")
+
+    results = [
+        operations.EvaluateResult(
+            result_path=str(result_one),
+            stdout="judge-one\n",
+            metrics={"original_ndcg@10": "0.1"},
+            artifact_paths=[str(result_one), str(shared_artifact)],
+        ),
+        operations.EvaluateResult(
+            result_path=str(result_two),
+            stdout="judge-two\n",
+            metrics={"original_ndcg@10": "0.2"},
+            artifact_paths=[str(result_two), str(shared_artifact)],
+        ),
+    ]
+
+    def fake_single_judge(args: Any) -> operations.EvaluateResult:
+        del args
+        return results.pop(0)
+
+    monkeypatch.setattr(operations, "_evaluate_with_single_judge", fake_single_judge)
+    monkeypatch.setattr(qrel_utils, "get_qrels_file", lambda qrel: str(Path(qrel)))
+
+    exit_code = main(
+        [
+            "evaluate",
+            "--backend",
+            "ensemble",
+            "--qrel",
+            str(qrel_path),
+            "--result-file",
+            str(run_path),
+            "--llm-judges",
+            "GPTJudge,HGFLLMJudge",
+            "--model-names",
+            "fixture/model-a,fixture/model-b",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "evaluate"
+    assert output["metrics"] == {}
+
+    artifact_paths = [artifact["path"] for artifact in output["artifacts"]]
+    assert artifact_paths.count(str(shared_artifact)) == 1
+    final_result = Path(
+        next(
+            artifact["path"]
+            for artifact in output["artifacts"]
+            if artifact["name"] == "evaluation-output"
+        )
+    )
+    assert qrel_utils.get_qrels(str(final_result)) == {
+        1: {"d0": "1", "d1": "1", "d2": "2", "d3": "3"}
+    }
+    assert output["warnings"] == ["judge-one\njudge-two\n"]
