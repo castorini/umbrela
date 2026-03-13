@@ -44,10 +44,8 @@ def style(text: str, color: str, enabled: bool) -> str:
 
 
 def truncate(text: str, limit: int = 120) -> str:
-    cleaned = " ".join(text.split())
-    if len(cleaned) <= limit:
-        return cleaned
-    return f"{cleaned[: limit - 3]}..."
+    del limit
+    return " ".join(text.split())
 
 
 def load_records(path: str) -> list[dict[str, Any]]:

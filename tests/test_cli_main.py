@@ -443,7 +443,7 @@ def test_view_judgments_returns_json_summary(tmp_path: Path, capsys: Any) -> Non
     }
     assert len(output["artifacts"][0]["data"]["sampled_records"]) == 1
     assert "prompt" not in output["artifacts"][0]["data"]["sampled_records"][0]
-    assert output["artifacts"][0]["data"]["sampled_records"][0]["query"].endswith("...")
+    assert output["artifacts"][0]["data"]["sampled_records"][0]["query"] == "Q" * 180
 
 
 def test_view_judgments_text_hides_prompts_by_default(
