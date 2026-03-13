@@ -21,7 +21,8 @@ activated, the development fallback is `uv run umbrela ...`.
 ```bash
 umbrela judge \
   --backend gpt \
-  --model gpt-4o \
+  --model openai/gpt-4o-mini \
+  --use-openrouter \
   --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
   --output json
 ```
@@ -40,6 +41,10 @@ The direct form accepts lightweight caller payloads:
 The CLI normalizes that into Umbrela's canonical internal shape:
 `query.text` plus `candidates[].doc.segment`. Caller-supplied `qid` and `docid`
 remain optional.
+
+For `--backend gpt`, Umbrela prefers `OPENAI_API_KEY`, falls back to
+`OPENROUTER_API_KEY` when the OpenAI key is absent, and lets callers force
+OpenRouter with `--use-openrouter`.
 
 ## Batch And Evaluation Examples
 

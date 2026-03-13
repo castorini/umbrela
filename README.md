@@ -6,7 +6,7 @@ The package is built for information retrieval evaluation workflows: you can run
 
 ## What it includes
 
-- `GPTJudge` for OpenAI or Azure OpenAI models
+- `GPTJudge` for OpenAI, OpenRouter, or Azure OpenAI models
 - `GeminiJudge` for Vertex AI Gemini models
 - `HGFLLMJudge` for local Hugging Face transformer models
 - `OSLLMJudge` for FastChat-compatible open models
@@ -81,6 +81,12 @@ uv sync --group dev --extra all
 Add a repo-local `.env` file with only the credentials for the backend you plan to run:
 
 ```dotenv
+# GPTJudge via OpenAI
+OPENAI_API_KEY=...
+
+# GPTJudge via OpenRouter
+OPENROUTER_API_KEY=...
+
 # GPTJudge via Azure OpenAI
 OPENAI_API_KEY=...
 AZURE_OPENAI_API_VERSION=...
@@ -96,7 +102,11 @@ HF_TOKEN=...
 HF_CACHE_DIR=...
 ```
 
-Only set the variables required by the judge you are using.
+Only set the variables required by the judge you are using. For `GPTJudge`,
+Umbrela prefers public OpenAI when `OPENAI_API_KEY` is present, falls back to
+OpenRouter when `OPENROUTER_API_KEY` is present and the OpenAI key is absent,
+and can be forced onto OpenRouter with `--use-openrouter` or
+`use_openrouter=True`.
 
 ### CLI usage
 
@@ -109,7 +119,8 @@ Direct minimal JSON input:
 ```bash
 umbrela judge \
   --backend gpt \
-  --model gpt-4o \
+  --model openai/gpt-4o-mini \
+  --use-openrouter \
   --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
   --output json
 ```
@@ -176,7 +187,11 @@ For the default async-first OpenAI/Azure OpenAI example, run:
 uv run python examples/e2e.py --model gpt-4o
 ```
 
-Pass `--use_azure_openai` to target Azure OpenAI instead of the public OpenAI API. The example uses bounded request concurrency; tune it with `--max_concurrency`.
+Pass `--use_azure_openai` to target Azure OpenAI instead of the public OpenAI
+API, or `--use_openrouter` to force OpenRouter. If neither flag is set,
+Umbrela prefers `OPENAI_API_KEY` and falls back to `OPENROUTER_API_KEY` when
+the OpenAI key is absent. The example uses bounded request concurrency; tune it
+with `--max_concurrency`.
 
 For the synchronous compatibility example, run:
 
@@ -197,6 +212,13 @@ from umbrela.gpt_judge import GPTJudge
 load_dotenv()
 
 judge_gpt = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o")
+
+judge_openrouter = GPTJudge(
+    qrel="dl19-passage",
+    prompt_type="bing",
+    model_name="anthropic/claude-3.5-sonnet",
+    use_openrouter=True,
+)
 ```
 
 ```python

@@ -30,7 +30,7 @@ Additional setup notes:
 
 ## Environment Variables
 
-- `OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_BASE`, `DEPLOYMENT_NAME` — for `GPTJudge` (Azure preferred; falls back to plain OpenAI if Azure vars absent)
+- `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_BASE`, `DEPLOYMENT_NAME` — for `GPTJudge` (public OpenAI by default, OpenRouter fallback when the OpenAI key is absent, Azure OpenAI only when explicitly requested)
 - `GCLOUD_PROJECT`, `GCLOUD_REGION` — for `GeminiJudge` (uses Vertex AI)
 - `HF_TOKEN`, `HF_CACHE_DIR` — for `HGFLLMJudge`
 
@@ -44,7 +44,8 @@ only as the fallback when the virtual environment is not activated:
 # Direct minimal JSON input
 umbrela judge \
   --backend gpt \
-  --model gpt-4o \
+  --model openai/gpt-4o-mini \
+  --use-openrouter \
   --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
   --output json
 
@@ -75,7 +76,7 @@ few-shot.
 ```
 src/umbrela/
   llm_judge.py       # Abstract base class LLMJudge — shared evaluation logic
-  gpt_judge.py       # GPTJudge: OpenAI/Azure OpenAI
+  gpt_judge.py       # GPTJudge: OpenAI/OpenRouter/Azure OpenAI
   gemini_judge.py    # GeminiJudge: Google Vertex AI
   hgfllm_judge.py    # HGFLLMJudge: HuggingFace transformers (batched, DataLoader)
   osllm_judge.py     # OSLLMJudge: open-source via FastChat load_model
@@ -103,6 +104,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 judge = GPTJudge(qrel="dl19-passage", prompt_type="bing", model_name="gpt-4o")
+openrouter_judge = GPTJudge(
+    qrel="dl19-passage",
+    prompt_type="bing",
+    model_name="anthropic/claude-3.5-sonnet",
+    use_openrouter=True,
+)
 judgments = judge.judge(request_dict=input_dict)
 # input_dict: {"query": {"text": ..., "qid": ...}, "candidates": [{"doc": {"segment": ...}, "docid": ...}]}
 ```
