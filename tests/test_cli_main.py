@@ -295,6 +295,63 @@ def test_batch_judge_can_write_filtered_requests(
     ]
 
 
+def test_batch_judge_text_output_is_quiet_when_writing_output_file(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    input_path = tmp_path / "requests.jsonl"
+    output_path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        input_path,
+        [
+            {
+                "query": {"qid": "q1", "text": "what is python used for"},
+                "candidates": [
+                    {
+                        "docid": "d1",
+                        "doc": {"segment": "Python is used for web development."},
+                    }
+                ],
+            }
+        ],
+    )
+
+    def fake_run_judge_batch(
+        records: list[dict[str, Any]], args: Any
+    ) -> list[dict[str, Any]]:
+        assert len(records) == 1
+        return [
+            {
+                "model": "gemini-1.5-pro",
+                "query": "what is python used for",
+                "passage": "Python is used for web development.",
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_batch", fake_run_judge_batch)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gemini",
+            "--model",
+            "gemini-1.5-pro",
+            "--input-file",
+            str(input_path),
+            "--output-file",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert read_jsonl(output_path)[0]["judgment"] == 3
+    assert capsys.readouterr().out == ""
+
+
 def test_batch_judge_filtered_output_requires_min_judgment(capsys: Any) -> None:
     exit_code = main(
         [

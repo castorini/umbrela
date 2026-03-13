@@ -708,11 +708,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         for record in artifact:
             sys.stdout.write(json.dumps(record) + "\n")
     elif args.command == "judge":
-        artifact = cast(list[dict[str, Any]], response.artifacts[0]["data"])
-        sys.stdout.write(
-            _format_text_judgments(artifact, include_reasoning=args.include_reasoning)
-            + "\n"
-        )
+        if not (
+            getattr(args, "input_file", None) and getattr(args, "output_file", None)
+        ):
+            artifact = cast(list[dict[str, Any]], response.artifacts[0]["data"])
+            sys.stdout.write(
+                _format_text_judgments(
+                    artifact, include_reasoning=args.include_reasoning
+                )
+                + "\n"
+            )
     elif args.command in {"describe", "schema"}:
         sys.stdout.write(json.dumps(response.artifacts[0]["data"], indent=2) + "\n")
     elif args.command == "doctor":
