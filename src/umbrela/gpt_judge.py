@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+from typing import Any
 
 from typing_extensions import Optional
 
@@ -66,6 +67,48 @@ class GPTJudge(LLMJudge):
             self.engine = self.model_name
             self.use_azure_ai = False
 
+    def _normalize_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
+        if (
+            "o1" in self.model_name
+            or "o3" in self.model_name
+            or "o4" in self.model_name
+        ):
+            normalized_messages = [message.copy() for message in messages[1:]]
+            normalized_messages[0]["content"] = (
+                messages[0]["content"] + "\n" + messages[1]["content"]
+            )
+            return normalized_messages
+        return messages
+
+    def _build_completion_params(
+        self, messages: list[dict[str, str]], max_new_tokens: int
+    ) -> dict[str, Any]:
+        normalized_messages = self._normalize_messages(messages)
+        uses_reasoning_style_api = (
+            "o1" in self.model_name
+            or "o3" in self.model_name
+            or "o4" in self.model_name
+            or "gpt-5" in self.model_name
+        )
+        temperature = 0.0
+        if uses_reasoning_style_api:
+            temperature = 1.0
+
+        completion_params: dict[str, Any] = {
+            "model": self.engine,
+            "messages": normalized_messages,
+            "temperature": temperature,
+            "timeout": 30,
+        }
+        if uses_reasoning_style_api:
+            completion_params["max_completion_tokens"] = max_new_tokens
+        else:
+            completion_params["max_tokens"] = max_new_tokens
+            completion_params["top_p"] = 1
+            completion_params["frequency_penalty"] = 0.5
+            completion_params["presence_penalty"] = 0
+        return completion_params
+
     async def run_gpt(self, prompt, max_new_tokens):
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -74,13 +117,7 @@ class GPTJudge(LLMJudge):
         for attempt in range(3):
             try:
                 response = await self.async_client.chat.completions.create(
-                    model=self.engine,
-                    messages=messages,
-                    max_tokens=max_new_tokens,
-                    temperature=0,
-                    top_p=1,
-                    frequency_penalty=0.5,
-                    presence_penalty=0,
+                    **self._build_completion_params(messages, max_new_tokens)
                 )
                 return (
                     response.choices[0].message.content.lower()

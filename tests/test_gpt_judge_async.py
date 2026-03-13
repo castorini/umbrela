@@ -80,6 +80,42 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         self.assertEqual([item["judgment"] for item in judgments], [0, 1, 2])
         self.assertEqual(judgments[1]["passage"], "second passage")
 
+    def test_gpt5_uses_max_completion_tokens(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "gpt-5.4"
+        judge.engine = "gpt-5.4"
+
+        params = judge._build_completion_params(
+            [
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "user"},
+            ],
+            max_new_tokens=123,
+        )
+
+        self.assertEqual(params["max_completion_tokens"], 123)
+        self.assertNotIn("max_tokens", params)
+        self.assertEqual(params["temperature"], 1.0)
+
+    def test_o1_models_fold_system_message(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "o1-preview"
+        judge.engine = "o1-preview"
+
+        params = judge._build_completion_params(
+            [
+                {"role": "system", "content": "sys"},
+                {"role": "user", "content": "usr"},
+            ],
+            max_new_tokens=50,
+        )
+
+        self.assertEqual(len(params["messages"]), 1)
+        self.assertEqual(params["messages"][0]["content"], "sys\nusr")
+        self.assertEqual(params["max_completion_tokens"], 50)
+        self.assertNotIn("max_tokens", params)
+        self.assertEqual(params["temperature"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
