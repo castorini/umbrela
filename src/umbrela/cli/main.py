@@ -156,14 +156,19 @@ def _resolve_write_policy(args: argparse.Namespace) -> str:
     return "default_fail_if_exists"
 
 
-def _prepare_output_path(args: argparse.Namespace, *, command: str) -> str:
-    output_path = getattr(args, "output_file", None)
+def _prepare_output_path(
+    args: argparse.Namespace,
+    *,
+    command: str,
+    attribute_name: str = "output_file",
+) -> str:
+    output_path = getattr(args, attribute_name, None)
     if output_path is None:
         raise CLIError(
-            f"{command} requires --output-file",
+            f"{command} requires --{attribute_name.replace('_', '-')}",
             exit_code=INVALID_ARGS_EXIT_CODE,
             status="validation_error",
-            error_code="missing_output_file",
+            error_code=f"missing_{attribute_name}",
             command=command,
         )
     output_file = Path(cast(str, output_path))
@@ -184,6 +189,71 @@ def _prepare_output_path(args: argparse.Namespace, *, command: str) -> str:
         )
     output_file.parent.mkdir(parents=True, exist_ok=True)
     return str(output_file)
+
+
+def _filtered_records_from_judgments(
+    records: list[dict[str, Any]],
+    judgments: list[dict[str, Any]],
+    *,
+    min_judgment: int,
+) -> list[dict[str, Any]]:
+    filtered_records: list[dict[str, Any]] = []
+    judgment_index = 0
+    for record_index, record in enumerate(records, start=1):
+        candidates = cast(list[dict[str, Any]], record["candidates"])
+        next_index = judgment_index + len(candidates)
+        record_judgments = judgments[judgment_index:next_index]
+        if len(record_judgments) != len(candidates):
+            raise CLIError(
+                "judge output count does not match the number of input candidates",
+                exit_code=RUNTIME_EXIT_CODE,
+                status="runtime_error",
+                error_code="judgment_count_mismatch",
+                command="judge",
+                details={
+                    "record_index": record_index,
+                    "candidate_count": len(candidates),
+                    "judgment_count": len(record_judgments),
+                },
+            )
+        kept_candidates = [
+            candidate
+            for candidate, judgment in zip(candidates, record_judgments)
+            if int(judgment["judgment"]) >= min_judgment
+        ]
+        if not kept_candidates:
+            raise CLIError(
+                "Filtering removed every candidate from a request",
+                exit_code=RUNTIME_EXIT_CODE,
+                status="runtime_error",
+                error_code="empty_filtered_request",
+                command="judge",
+                details={
+                    "record_index": record_index,
+                    "min_judgment": min_judgment,
+                    "query": record["query"],
+                },
+            )
+        filtered_records.append(
+            {
+                "query": record["query"],
+                "candidates": kept_candidates,
+            }
+        )
+        judgment_index = next_index
+    if judgment_index != len(judgments):
+        raise CLIError(
+            "judge output count does not match the input request file",
+            exit_code=RUNTIME_EXIT_CODE,
+            status="runtime_error",
+            error_code="judgment_count_mismatch",
+            command="judge",
+            details={
+                "consumed_judgments": judgment_index,
+                "total_judgments": len(judgments),
+            },
+        )
+    return filtered_records
 
 
 def _read_direct_payload(args: argparse.Namespace) -> dict[str, Any]:
@@ -243,6 +313,8 @@ def build_parser() -> CLIArgumentParser:
     judge_parser.add_argument("--reasoning-effort", choices=["low", "medium", "high"])
     judge_parser.add_argument("--device", type=str, default="cuda")
     judge_parser.add_argument("--include-reasoning", action="store_true")
+    judge_parser.add_argument("--min-judgment", type=int)
+    judge_parser.add_argument("--filtered-output-file", type=str)
     judge_parser.add_argument("--dry-run", action="store_true")
     judge_parser.add_argument("--overwrite", action="store_true")
     judge_parser.add_argument("--resume", action="store_true")
@@ -331,6 +403,22 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             error_code="unsupported_execution_mode",
             command="judge",
         )
+    if args.min_judgment is not None and not 0 <= args.min_judgment <= 3:
+        raise CLIError(
+            "--min-judgment must be between 0 and 3",
+            exit_code=VALIDATION_EXIT_CODE,
+            status="validation_error",
+            error_code="invalid_min_judgment",
+            command="judge",
+        )
+    if args.filtered_output_file is not None and args.min_judgment is None:
+        raise CLIError(
+            "--filtered-output-file requires --min-judgment",
+            exit_code=INVALID_ARGS_EXIT_CODE,
+            status="validation_error",
+            error_code="missing_min_judgment",
+            command="judge",
+        )
     if args.input_file is not None:
         _ensure_file_exists(args.input_file, command="judge", field_name="input_file")
         validation = validate_judge_batch_file(args.input_file)
@@ -347,6 +435,13 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             judgments: list[dict[str, Any]] = []
         else:
             judgments = run_judge_batch(records, args)
+        filtered_records: list[dict[str, Any]] = []
+        if args.filtered_output_file is not None and not args.dry_run:
+            filtered_records = _filtered_records_from_judgments(
+                records,
+                judgments,
+                min_judgment=args.min_judgment,
+            )
         response = CommandResponse(
             command="judge",
             inputs={
@@ -357,6 +452,7 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             resolved={
                 "record_count": len(records),
                 "execution_mode": args.execution_mode,
+                "min_judgment": args.min_judgment,
             },
             validation=validation,
             artifacts=[make_data_artifact("judgments", judgments)],
@@ -366,6 +462,19 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             write_jsonl(output_path, judgments)
             response.artifacts.append(
                 make_file_artifact("judgments-jsonl", output_path)
+            )
+        if args.filtered_output_file is not None and not args.dry_run:
+            filtered_output_path = _prepare_output_path(
+                args,
+                command="judge",
+                attribute_name="filtered_output_file",
+            )
+            write_jsonl(filtered_output_path, filtered_records)
+            response.artifacts.append(
+                make_file_artifact(
+                    "filtered-requests-jsonl",
+                    filtered_output_path,
+                )
             )
         return response
 

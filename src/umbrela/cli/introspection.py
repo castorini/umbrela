@@ -28,6 +28,11 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 "umbrela judge --backend gemini --model gemini-1.5-pro "
                 "--input-file requests.jsonl --output-file judgments.jsonl"
             ),
+            (
+                "umbrela judge --backend gpt --model gpt-4o "
+                "--input-file requests.jsonl --output-file judgments.jsonl "
+                "--filtered-output-file relevant.jsonl --min-judgment 2"
+            ),
         ],
         "direct_input": {
             "ids_optional": True,

@@ -213,6 +213,172 @@ def test_batch_judge_writes_jsonl_output(tmp_path: Path, monkeypatch: Any) -> No
     assert records[0]["judgment"] == 3
 
 
+def test_batch_judge_can_write_filtered_requests(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    input_path = tmp_path / "requests.jsonl"
+    judgments_path = tmp_path / "judgments.jsonl"
+    filtered_path = tmp_path / "relevant.jsonl"
+    write_jsonl(
+        input_path,
+        [
+            {
+                "query": {"qid": "q1", "text": "what is python used for"},
+                "candidates": [
+                    {
+                        "docid": "d1",
+                        "doc": {"segment": "Python is used for web development."},
+                    },
+                    {
+                        "docid": "d2",
+                        "doc": {"segment": "Python is a kind of snake."},
+                    },
+                ],
+            }
+        ],
+    )
+
+    def fake_run_judge_batch(
+        records: list[dict[str, Any]], args: Any
+    ) -> list[dict[str, Any]]:
+        assert len(records) == 1
+        assert args.min_judgment == 2
+        return [
+            {
+                "model": "gemini-1.5-pro",
+                "query": "what is python used for",
+                "passage": "Python is used for web development.",
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            },
+            {
+                "model": "gemini-1.5-pro",
+                "query": "what is python used for",
+                "passage": "Python is a kind of snake.",
+                "prompt": "prompt",
+                "prediction": "1",
+                "judgment": 1,
+                "result_status": 1,
+            },
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_batch", fake_run_judge_batch)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gemini",
+            "--model",
+            "gemini-1.5-pro",
+            "--input-file",
+            str(input_path),
+            "--output-file",
+            str(judgments_path),
+            "--filtered-output-file",
+            str(filtered_path),
+            "--min-judgment",
+            "2",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    filtered_records = read_jsonl(filtered_path)
+    assert len(filtered_records) == 1
+    assert filtered_records[0]["query"]["qid"] == "q1"
+    assert [candidate["docid"] for candidate in filtered_records[0]["candidates"]] == [
+        "d1"
+    ]
+
+
+def test_batch_judge_filtered_output_requires_min_judgment(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-file",
+            "/tmp/does-not-exist.jsonl",
+            "--filtered-output-file",
+            "/tmp/relevant.jsonl",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "validation_error"
+    assert output["errors"][0]["code"] == "missing_min_judgment"
+
+
+def test_batch_judge_filtered_output_fails_when_threshold_removes_all_candidates(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    input_path = tmp_path / "requests.jsonl"
+    filtered_path = tmp_path / "relevant.jsonl"
+    write_jsonl(
+        input_path,
+        [
+            {
+                "query": {"qid": "q1", "text": "what is python used for"},
+                "candidates": [
+                    {
+                        "docid": "d1",
+                        "doc": {"segment": "Python is used for web development."},
+                    }
+                ],
+            }
+        ],
+    )
+
+    def fake_run_judge_batch(
+        records: list[dict[str, Any]], args: Any
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "what is python used for",
+                "passage": "Python is used for web development.",
+                "prompt": "prompt",
+                "prediction": "1",
+                "judgment": 1,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_batch", fake_run_judge_batch)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-file",
+            str(input_path),
+            "--filtered-output-file",
+            str(filtered_path),
+            "--min-judgment",
+            "2",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 6
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "runtime_error"
+    assert output["errors"][0]["code"] == "empty_filtered_request"
+
+
 def test_batch_judge_missing_input_returns_json_error(capsys: Any) -> None:
     exit_code = main(
         [

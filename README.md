@@ -145,6 +145,23 @@ umbrela judge \
   --output-file judgments.jsonl
 ```
 
+Batch judging with direct request filtering for downstream tools:
+
+```bash
+umbrela judge \
+  --backend gpt \
+  --model gpt-4o \
+  --input-file requests.jsonl \
+  --output-file judgments.jsonl \
+  --filtered-output-file relevant.jsonl \
+  --min-judgment 2
+```
+
+`--filtered-output-file` writes a second JSONL file containing the original
+request records with only candidates whose Umbrela score is at least
+`--min-judgment`. If a request would become empty after filtering, the command
+fails instead of silently emitting an unusable record.
+
 Qrel-backed evaluation:
 
 ```bash
