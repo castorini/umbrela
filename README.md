@@ -18,20 +18,45 @@ The package is built for information retrieval evaluation workflows: you can run
 
 It is built on Python 3.11 (other versions might work, but YMMV).
 
+### Install `uv`
+
+Install `uv` with Astral's official installer:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+If `uv` already works in your shell, you can skip this step. Otherwise, restart your shell or add `uv` to the current shell session:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ### Prerequisites
 
 - Install Java 21 once on the machine. `pyserini` uses Lucene and the JVM for qrel and passage access.
 
-### Quick start
+### Development installation
+
+For development or the latest features, install from source with a repo-local virtual environment:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create/update this repository's .venv and install the cloud backends
+git clone https://github.com/castorini/umbrela.git
+cd umbrela
+uv python install 3.11
+uv venv --python 3.11
+source .venv/bin/activate
 uv sync --extra cloud
 ```
 
-`uv sync` creates a repo-local virtual environment at `.venv`. The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will use that version automatically and download it if needed.
+If you prefer not to activate the virtual environment, run commands through `uv run`, for example:
+
+```bash
+uv run python examples/e2e.py --help
+uv run umbrela-gpt --help
+```
+
+The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will also select that version automatically when possible.
 
 Install only the backends you need:
 
