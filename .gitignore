@@ -3,12 +3,20 @@
 
 # Python caches and build artifacts
 __pycache__/
+**/__pycache__/
 *.py[cod]
+**/*.py[cod]
+*$py.class
+**/*$py.class
 *.so
 .pytest_cache/
+**/.pytest_cache/
 .mypy_cache/
+**/.mypy_cache/
 .ruff_cache/
+**/.ruff_cache/
 .pyre/
+**/.pyre/
 .coverage
 .coverage.*
 htmlcov/
@@ -21,10 +29,14 @@ dist/
 .env.*
 !.env.example
 .venv/
+**/.venv/
 uv.lock
 venv/
+**/venv/
 env/
+**/env/
 ENV/
+**/ENV/
 
 # Editors and notebooks
 .idea/
