@@ -23,6 +23,7 @@ keywords = ["LLM", "evaluation", "information retrieval"]
 requires-python = ">= 3.11"
 dependencies = [
     "matplotlib>=3.8.4",
+    "pyyaml>=6.0.2",
     "python-dotenv>=1.0.1",
     "scikit-learn>=1.4.2",
     "tqdm>=4.66.2",
@@ -72,11 +73,12 @@ dev = [
     "pre-commit>=3.8.0",
     "pytest>=8.4.2",
     "ruff>=0.12.0",
+    "types-PyYAML",
     "types-tqdm",
 ]
 
 [tool.setuptools.package-data]
-umbrela = ["prompts/*.txt"]
+umbrela = ["prompts/prompt_templates/*.yaml"]
 
 [project.urls]
 Homepage = "https://github.com/castorini/umbrela"
@@ -142,3 +144,4 @@ ignore_missing_imports = true
 
 [tool.ruff.lint.per-file-ignores]
 "src/eval/test.py" = ["E501"]
+"tests/test_prompt_templates.py" = ["E501"]
