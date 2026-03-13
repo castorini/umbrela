@@ -10,7 +10,6 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorWithPadding
 
 from umbrela.llm_judge import LLMJudge
-from umbrela.utils import common_utils
 
 # Select relevance categories to be judged.
 JUDGE_CAT = [0, 1, 2, 3]
@@ -44,13 +43,7 @@ class HGFLLMJudge(LLMJudge):
         batch_size: int = 1,
         num_workers: int = 16,
     ):
-        if prepocess:
-            self.query_passage = common_utils.preprocess_request_dict(request_dict)
-        else:
-            self.query_passage = request_dict
-        self.prompts = common_utils.generate_prompts(
-            self.query_passage, self.prompt_examples, self._prompt_template
-        )
+        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             device_map="auto",
@@ -69,7 +62,7 @@ class HGFLLMJudge(LLMJudge):
 
         model.eval()
 
-        dataset = datasets.Dataset.from_list([{"text": (t)} for t in self.prompts])
+        dataset = datasets.Dataset.from_list([{"text": t} for t in prompts])
 
         dataset = dataset.map(
             lambda sample: tokenizer(sample["text"]),
@@ -118,9 +111,7 @@ class HGFLLMJudge(LLMJudge):
 
     def judge(self, request_dict, max_new_tokens=100, prepocess: bool = True):
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
-        return common_utils.prepare_judgments(
-            outputs, self.query_passage, self.prompts, self.model_name
-        )
+        return self.prepare_judgments(outputs)
 
 
 def main():
