@@ -100,12 +100,13 @@ Only set the variables required by the judge you are using.
 ### CLI usage
 
 `umbrela` is the canonical command-line interface for this repository.
-Use `uv run umbrela ...` if the virtual environment is not activated.
+Use plain `umbrela ...` in an activated environment. If the virtual
+environment is not activated, the fallback is `uv run umbrela ...`.
 
 Direct minimal JSON input:
 
 ```bash
-uv run umbrela judge \
+umbrela judge \
   --backend gpt \
   --model gpt-4o \
   --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
@@ -116,13 +117,13 @@ Direct input from standard input:
 
 ```bash
 echo '{"query":"anthropological definition of environment","candidates":["Environmental anthropology examines relationships between humans and their environment across space and time."]}' \
-  | uv run umbrela judge --backend gpt --model gpt-4o --stdin --output json
+  | umbrela judge --backend gpt --model gpt-4o --stdin --output json
 ```
 
 Batch judging:
 
 ```bash
-uv run umbrela judge \
+umbrela judge \
   --backend gemini \
   --model gemini-1.5-pro \
   --input-file requests.jsonl \
@@ -132,7 +133,7 @@ uv run umbrela judge \
 Qrel-backed evaluation:
 
 ```bash
-uv run umbrela evaluate \
+umbrela evaluate \
   --backend gpt \
   --model gpt-4o \
   --qrel dl19-passage \
@@ -145,12 +146,12 @@ uv run umbrela evaluate \
 CLI introspection:
 
 ```bash
-uv run umbrela describe judge --output json
-uv run umbrela schema judge-direct-input
-uv run umbrela validate judge \
+umbrela describe judge --output json
+umbrela schema judge-direct-input
+umbrela validate judge \
   --input-json '{"query":"q","candidates":["p1","p2"]}' \
   --output json
-uv run umbrela doctor --output json
+umbrela doctor --output json
 ```
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
@@ -173,7 +174,7 @@ Migration examples:
 uv run umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
 
 # new
-uv run umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
+umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
 ```
 
 ### Quick end-to-end smoke test

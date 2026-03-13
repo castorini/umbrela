@@ -1,8 +1,9 @@
 # Umbrela CLI For Agents
 
 `umbrela ...` is the canonical command-line interface for this repository.
-Use it in preference to the old backend-specific entry points. If the virtual
-environment is not activated, the development fallback is `uv run umbrela ...`.
+Use it in preference to the old backend-specific entry points. In an activated
+environment, run `umbrela ...` directly. If the virtual environment is not
+activated, the development fallback is `uv run umbrela ...`.
 
 ## Command Overview
 
@@ -75,11 +76,11 @@ umbrela doctor --output json
 Old:
 
 ```bash
-uv run umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
+umbrela-gpt --qrel dl19-passage --result_file run.trec --prompt_type bing --model gpt-4o --few_shot_count 0
 ```
 
 New:
 
 ```bash
-uv run umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
+umbrela evaluate --backend gpt --qrel dl19-passage --result-file run.trec --prompt-type bing --model gpt-4o --few-shot-count 0
 ```

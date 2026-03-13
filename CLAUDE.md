@@ -35,18 +35,20 @@ Additional setup notes:
 
 ## Running Evaluations
 
-Use the packaged `umbrela` CLI instead of backend-specific entry points:
+Use the packaged `umbrela` CLI instead of backend-specific entry points.
+Use plain `umbrela ...` in an activated environment and `uv run umbrela ...`
+only as the fallback when the virtual environment is not activated:
 
 ```bash
 # Direct minimal JSON input
-uv run umbrela judge \
+umbrela judge \
   --backend gpt \
   --model gpt-4o \
   --input-json '{"query":"how long is life cycle of flea","candidates":["The life cycle of a flea can last anywhere from 20 days to an entire year."]}' \
   --output json
 
 # Batch evaluation against a qrel and retrieval run
-uv run umbrela evaluate \
+umbrela evaluate \
   --backend gpt \
   --model gpt-4o \
   --qrel dl19-passage \
@@ -56,9 +58,9 @@ uv run umbrela evaluate \
   --output json
 
 # Introspection and validation
-uv run umbrela describe judge --output json
-uv run umbrela schema judge-direct-input
-uv run umbrela doctor --output json
+umbrela describe judge --output json
+umbrela schema judge-direct-input
+umbrela doctor --output json
 ```
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
