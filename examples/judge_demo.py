@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Async-first GPT end-to-end example for Umbrela."""
+"""Async-first GPT judge demo for Umbrela."""
 
 import argparse
 import asyncio
@@ -115,7 +115,7 @@ def print_results(
 
 async def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the default async GPT end-to-end example for Umbrela."
+        description="Run the default async GPT judge demo for Umbrela."
     )
     parser.add_argument(
         "--model",
@@ -214,7 +214,7 @@ async def main() -> None:
         )
 
     print(
-        f"Running Umbrela async e2e example with model={args.model} "
+        f"Running Umbrela async judge demo with model={args.model} "
         f"prompt_type={args.prompt_type} few_shot_count={args.few_shot_count} "
         f"max_concurrency={args.max_concurrency}"
     )

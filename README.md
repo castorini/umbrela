@@ -53,7 +53,7 @@ uv sync --group dev
 If you prefer not to activate the virtual environment, run commands through `uv run`, for example:
 
 ```bash
-uv run python examples/e2e.py --help
+uv run python examples/judge_demo.py --help
 uv run umbrela --help
 uv run pre-commit run --all-files
 ```
@@ -184,7 +184,7 @@ while `evaluate` includes artifact paths and evaluation metrics.
 For the default async-first OpenAI/Azure OpenAI example, run:
 
 ```bash
-uv run python examples/e2e.py --model gpt-4o
+uv run python examples/judge_demo.py --model gpt-4o
 ```
 
 Pass `--use_azure_openai` to target Azure OpenAI instead of the public OpenAI
@@ -196,10 +196,10 @@ with `--max_concurrency`.
 For the synchronous compatibility example, run:
 
 ```bash
-uv run python examples/sync_e2e.py --judge gpt --model gpt-4o
+uv run python examples/sync_judge_demo.py --judge gpt --model gpt-4o
 ```
 
-`sync_e2e.py` also retains the multi-backend smoke-test flow for `gemini`, `hf`, and `os`.
+`sync_judge_demo.py` also retains the multi-backend smoke-test flow for `gemini`, `hf`, and `os`.
 
 ### Programmatic usage
 

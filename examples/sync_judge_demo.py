@@ -133,7 +133,7 @@ def print_results(
     show_reasoning: bool = False,
     passage_width: int = 100,
 ) -> None:
-    """Render readable per-document results for manual smoke tests."""
+    """Render readable per-document results for manual judge demos."""
     query = request["query"]["text"]
     qid = request["query"].get("qid", "unknown")
 
@@ -169,7 +169,7 @@ def print_results(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the synchronous Umbrela end-to-end example."
+        description="Run the synchronous Umbrela judge demo."
     )
     parser.add_argument(
         "--judge",
@@ -285,7 +285,7 @@ def main() -> None:
     request = create_sample_request()
 
     print(
-        f"Running Umbrela sync e2e example with judge={args.judge} "
+        f"Running Umbrela sync judge demo with judge={args.judge} "
         f"model={args.model} prompt_type={args.prompt_type} "
         f"few_shot_count={args.few_shot_count}"
     )
