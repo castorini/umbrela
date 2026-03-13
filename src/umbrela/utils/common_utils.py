@@ -198,6 +198,5 @@ def draw_confusion_matrix(
     ax.set_xlabel("Predicted label", fontsize=14)
     ax.set_ylabel("True label", fontsize=14)
     plt.savefig(
-        "conf_matrix/"
-        f"{artifact_label(qrel)}-{os.path.basename(model_name)}.png"
+        f"conf_matrix/{artifact_label(qrel)}-{os.path.basename(model_name)}.png"
     )

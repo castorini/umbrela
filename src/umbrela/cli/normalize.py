@@ -11,8 +11,7 @@ def _normalize_query(query: Any) -> dict[str, str]:
         normalized["qid"] = str(query.get("qid", "q0"))
         return normalized
     raise ValueError(
-        "Direct judge input requires `query` "
-        "as a string or object with `text`."
+        "Direct judge input requires `query` as a string or object with `text`."
     )
 
 

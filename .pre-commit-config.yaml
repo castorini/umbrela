@@ -16,5 +16,6 @@ repos:
           - python-dotenv
           - retry
           - scikit-learn
+          - types-PyYAML
           - types-tqdm
           - typing-extensions

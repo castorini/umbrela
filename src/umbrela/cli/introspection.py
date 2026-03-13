@@ -21,7 +21,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 "umbrela judge --backend gpt --model gpt-4o "
                 '--input-json \'{"query":"how long is life cycle of flea",'
                 '"candidates":["The life cycle of a flea can last anywhere '
-                'from 20 days to an entire year."]}\' '
+                "from 20 days to an entire year.\"]}' "
                 "--output json"
             ),
             (

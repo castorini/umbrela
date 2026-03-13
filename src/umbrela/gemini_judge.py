@@ -42,10 +42,10 @@ class GeminiJudge(LLMJudge):
                     max_output_tokens=max_new_tokens,
                 ),
             )
-            output = response.text
+            output = getattr(response, "text", "")
         except Exception:
             output = ""
-        return output
+        return str(output)
 
     def predict_with_llm(
         self,

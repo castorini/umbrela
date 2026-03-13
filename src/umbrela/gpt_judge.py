@@ -175,9 +175,7 @@ class GPTJudge(LLMJudge):
         )
         return self._extract_responses_text_and_reasoning(response)
 
-    async def run_gpt(
-        self, prompt: str, max_new_tokens: int
-    ) -> tuple[str, str | None]:
+    async def run_gpt(self, prompt: str, max_new_tokens: int) -> tuple[str, str | None]:
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt},

@@ -35,8 +35,7 @@ class PromptTemplate:
         if missing:
             missing_display = ", ".join(f"`{{{name}}}`" for name in sorted(missing))
             raise ValueError(
-                "Prompt template must provide the fields "
-                f"{missing_display}."
+                f"Prompt template must provide the fields {missing_display}."
             )
 
     def render(self, *, examples: str, query: str, passage: str) -> str:

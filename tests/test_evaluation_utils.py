@@ -49,12 +49,13 @@ def test_write_modified_qrel_round_trips_through_qrel_reader(
     tmp_path: Path,
 ) -> None:
     qrel_path = tmp_path / "sample.qrels"
+    modified_qrels: qrel_utils.QrelsData = {
+        1: {"d1": "2", "d2": "0"},
+        "2": {3: "1"},
+    }
 
     common_utils.write_modified_qrel(
-        {
-            1: {"d1": 2, "d2": 0},
-            "2": {3: "1"},
-        },
+        modified_qrels,
         str(qrel_path),
     )
 

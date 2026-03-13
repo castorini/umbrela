@@ -72,9 +72,7 @@ class LLMJudge(ABC):
         self.prompts = prompts
         return query_passage, prompts
 
-    def prepare_judgments(
-        self, outputs: list[str]
-    ) -> list[common_utils.Judgment]:
+    def prepare_judgments(self, outputs: list[str]) -> list[common_utils.Judgment]:
         return common_utils.prepare_judgments(
             outputs,
             self.query_passage,

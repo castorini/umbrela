@@ -221,6 +221,10 @@ The synchronous compatibility shim remains available:
 judgments = judge_gpt.judge(request_dict=input_dict)
 ```
 
+## Contributing
+
+Contributor setup, local quality gates, and pull request expectations are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Evaluation outputs
 
 When you run end-to-end evaluation, umBRELA writes generated artifacts into repo-local directories:

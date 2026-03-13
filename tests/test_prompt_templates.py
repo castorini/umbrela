@@ -193,19 +193,19 @@ class PromptTemplateTests(unittest.TestCase):
 
         self.assertEqual(
             prompts,
-            [EXPECTED_FEWSHOT_BASIC.format(
-                examples="demo examples",
-                query="sample query",
-                passage="sample passage",
-            )],
+            [
+                EXPECTED_FEWSHOT_BASIC.format(
+                    examples="demo examples",
+                    query="sample query",
+                    passage="sample passage",
+                )
+            ],
         )
 
     def test_custom_yaml_template_must_include_required_placeholders(self) -> None:
         with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as handle:
             handle.write(
-                'method: "custom"\n'
-                'system_message: ""\n'
-                'prefix_user: "Query: {query}"\n'
+                'method: "custom"\nsystem_message: ""\nprefix_user: "Query: {query}"\n'
             )
             template_path = handle.name
 

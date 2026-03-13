@@ -27,7 +27,7 @@ KNOWN_COMMANDS = ("judge", "evaluate", "describe", "schema", "doctor", "validate
 TOP_LEVEL_EXAMPLES = (
     (
         "umbrela judge --backend gpt --model gpt-4o "
-        "--input-json '{\"query\":\"q\",\"candidates\":[\"p\"]}' --output json"
+        '--input-json \'{"query":"q","candidates":["p"]}\' --output json'
     ),
     (
         "umbrela evaluate --backend gpt --model gpt-4o "
@@ -286,8 +286,7 @@ def _format_text_judgments(
     lines: list[str] = []
     for index, judgment in enumerate(judgments, start=1):
         lines.append(
-            f"[{index}] score={judgment['judgment']} "
-            f"status={judgment['result_status']}"
+            f"[{index}] score={judgment['judgment']} status={judgment['result_status']}"
         )
         lines.append(f"query: {judgment['query']}")
         lines.append(f"passage: {judgment['passage']}")

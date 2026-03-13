@@ -12,8 +12,7 @@ class CommandSpec:
 JUDGE_COMMAND = CommandSpec(
     name="judge",
     description=(
-        "Run an Umbrela backend on either direct JSON input "
-        "or batch request files."
+        "Run an Umbrela backend on either direct JSON input or batch request files."
     ),
 )
 EVALUATE_COMMAND = CommandSpec(
@@ -35,7 +34,6 @@ DOCTOR_COMMAND = CommandSpec(
 VALIDATE_COMMAND = CommandSpec(
     name="validate",
     description=(
-        "Validate command payloads and file requirements "
-        "without executing a model."
+        "Validate command payloads and file requirements without executing a model."
     ),
 )
