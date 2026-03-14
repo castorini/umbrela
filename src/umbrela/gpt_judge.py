@@ -165,7 +165,19 @@ class GPTJudge(LLMJudge):
         max_new_tokens = self._resolve_max_new_tokens(max_new_tokens)
         return {
             "model": self.engine,
-            "input": self._normalize_messages(messages),
+            "input": [
+                {
+                    "type": "message",
+                    "role": message["role"],
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": message["content"],
+                        }
+                    ],
+                }
+                for message in self._normalize_messages(messages)
+            ],
             "max_output_tokens": max_new_tokens,
             "timeout": 30,
             "reasoning": {
@@ -190,13 +202,40 @@ class GPTJudge(LLMJudge):
         reasoning = None
         for item in getattr(response, "output", []):
             if getattr(item, "type", None) == "reasoning":
+                direct_reasoning_parts: list[str] = []
+                direct_reasoning = getattr(item, "reasoning", None)
+                if direct_reasoning:
+                    direct_reasoning_parts.append(str(direct_reasoning))
+                direct_reasoning_content = getattr(item, "reasoning_content", None)
+                if direct_reasoning_content:
+                    direct_reasoning_parts.append(str(direct_reasoning_content))
+                content_items = getattr(item, "content", None) or []
+                direct_reasoning_parts.extend(
+                    [
+                        str(content) if isinstance(content, str) else str(content.text)
+                        for content in content_items
+                        if (isinstance(content, str) and content)
+                        or (hasattr(content, "text") and content.text)
+                    ]
+                )
                 summaries = getattr(item, "summary", None)
+                summary_reasoning = None
                 if summaries:
-                    reasoning = "\n".join(
-                        summary.text
+                    summary_reasoning = "\n".join(
+                        str(summary) if isinstance(summary, str) else summary.text
                         for summary in summaries
-                        if hasattr(summary, "text") and summary.text
+                        if (isinstance(summary, str) and summary)
+                        or (hasattr(summary, "text") and summary.text)
                     )
+                direct_reasoning_text = (
+                    "\n".join(direct_reasoning_parts)
+                    if direct_reasoning_parts
+                    else None
+                )
+                if self.use_openrouter:
+                    reasoning = direct_reasoning_text or summary_reasoning
+                else:
+                    reasoning = summary_reasoning or direct_reasoning_text
         return text.lower(), reasoning
 
     async def _run_gpt_with_responses_api(

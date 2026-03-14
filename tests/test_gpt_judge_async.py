@@ -211,8 +211,21 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         responses_create.assert_awaited_once_with(
             model="gpt-5.4",
             input=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "prompt"},
+                {
+                    "type": "message",
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "You are a helpful assistant.",
+                        }
+                    ],
+                },
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": "prompt"}],
+                },
             ],
             max_output_tokens=77,
             timeout=30,
@@ -237,13 +250,73 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         responses_create.assert_awaited_once_with(
             model="gpt-5.4",
             input=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "prompt"},
+                {
+                    "type": "message",
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "You are a helpful assistant.",
+                        }
+                    ],
+                },
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": "prompt"}],
+                },
             ],
             max_output_tokens=4096,
             timeout=30,
             reasoning={"effort": "medium", "summary": "auto"},
         )
+
+    def test_openrouter_reasoning_models_also_use_responses_api(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "openrouter/openai/o4-mini"
+        judge.engine = "openrouter/openai/o4-mini"
+        judge.reasoning_effort = "high"
+        judge.use_openrouter = True
+
+        response = SimpleNamespace(
+            output_text="2",
+            output=[SimpleNamespace(type="reasoning", summary=["router summary"])],
+        )
+        responses_create = cast(AsyncMock, judge.async_client.responses.create)
+        chat_create = cast(AsyncMock, judge.async_client.chat.completions.create)
+        responses_create.return_value = response
+
+        output, reasoning = asyncio.run(judge.run_gpt("prompt", 77))
+
+        responses_create.assert_awaited_once()
+        chat_create.assert_not_called()
+        self.assertEqual(output, "2")
+        self.assertEqual(reasoning, "router summary")
+
+    def test_openrouter_responses_prefer_direct_reasoning(self) -> None:
+        judge = self.make_judge()
+        judge.model_name = "openrouter/openai/o4-mini"
+        judge.engine = "openrouter/openai/o4-mini"
+        judge.reasoning_effort = "high"
+        judge.use_openrouter = True
+
+        response = SimpleNamespace(
+            output_text="2",
+            output=[
+                SimpleNamespace(
+                    type="reasoning",
+                    reasoning="raw router reasoning",
+                    summary=["router summary"],
+                )
+            ],
+        )
+        responses_create = cast(AsyncMock, judge.async_client.responses.create)
+        responses_create.return_value = response
+
+        output, reasoning = asyncio.run(judge.run_gpt("prompt", 77))
+
+        self.assertEqual(output, "2")
+        self.assertEqual(reasoning, "raw router reasoning")
 
     def test_openrouter_mode_uses_openrouter_base_url(self) -> None:
         client_kwargs: dict[str, Any] = {}
@@ -269,9 +342,7 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             )
 
         self.assertEqual(client_kwargs["api_key"], "router-key")
-        self.assertEqual(
-            client_kwargs["base_url"], "https://openrouter.ai/api/v1"
-        )
+        self.assertEqual(client_kwargs["base_url"], "https://openrouter.ai/api/v1")
         self.assertTrue(judge.use_openrouter)
 
     def test_openrouter_fallback_is_used_when_openai_key_is_missing(self) -> None:
@@ -301,9 +372,7 @@ class GPTJudgeAsyncTests(unittest.TestCase):
             )
 
         self.assertEqual(client_kwargs["api_key"], "router-key")
-        self.assertEqual(
-            client_kwargs["base_url"], "https://openrouter.ai/api/v1"
-        )
+        self.assertEqual(client_kwargs["base_url"], "https://openrouter.ai/api/v1")
         self.assertTrue(judge.use_openrouter)
 
     def test_prepare_judgments_falls_back_to_reasoning_for_score(self) -> None:
