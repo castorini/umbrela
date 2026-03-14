@@ -665,16 +665,17 @@ def build_parser() -> CLIArgumentParser:
 def _format_text_judgments(
     judgments: list[dict[str, Any]], include_reasoning: bool
 ) -> str:
-    lines: list[str] = []
-    for index, judgment in enumerate(judgments, start=1):
-        lines.append(
-            f"[{index}] score={judgment['judgment']} status={judgment['result_status']}"
-        )
+    blocks: list[str] = []
+    for judgment in judgments:
+        lines = [f"score: {judgment['judgment']}"]
         lines.append(f"query: {judgment['query']}")
         lines.append(f"passage: {judgment['passage']}")
+        if int(judgment.get("result_status", 1)) == 0:
+            lines.append("parsing failed")
         if include_reasoning and judgment.get("reasoning"):
             lines.append(f"reasoning: {judgment['reasoning']}")
-    return "\n".join(lines)
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
 
 
 def _run_judge_command(args: argparse.Namespace) -> CommandResponse:

@@ -119,6 +119,86 @@ def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> No
     assert output["artifacts"][0]["data"][0]["reasoning"] == "reasoning content"
 
 
+def test_direct_judge_text_output_uses_score_and_reasoning(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "2",
+                "reasoning": "reasoning content",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--include-reasoning",
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "score: 2\nquery: q\npassage: p\nreasoning: reasoning content\n"
+    )
+
+
+def test_direct_judge_text_output_marks_parsing_failure(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "0",
+                "judgment": 0,
+                "result_status": 0,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "score: 0\nquery: q\npassage: p\nparsing failed\n"
+    )
+
+
 def test_direct_judge_accepts_minimal_reasoning_effort(
     monkeypatch: Any, capsys: Any
 ) -> None:
