@@ -105,7 +105,7 @@ class UmbrelaLiveOpenAISmokeTests(unittest.TestCase):
                     "--max-concurrency",
                     "2",
                     "--reasoning-effort",
-                    "low",
+                    "medium",
                     "--include-reasoning",
                     "--input-json",
                     json.dumps(
