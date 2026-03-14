@@ -234,6 +234,13 @@ uv run python examples/sync_judge_demo.py --judge gpt --model gpt-4o
 
 `sync_judge_demo.py` also retains the multi-backend smoke-test flow for `gemini`, `hf`, and `os`.
 
+For an opt-in live smoke test that exercises the packaged CLI against a real
+OpenAI-compatible backend, run:
+
+```bash
+UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'
+```
+
 ### Programmatic usage
 
 ```python

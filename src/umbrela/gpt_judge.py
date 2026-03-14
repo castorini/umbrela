@@ -64,8 +64,8 @@ class GPTJudge(LLMJudge):
                 "`uv sync --extra cloud`."
             ) from exc
 
-        openai_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
-        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        openai_api_key = os.getenv("OPENAI_API_KEY") or None
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY") or None
         azure_api_key = os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
