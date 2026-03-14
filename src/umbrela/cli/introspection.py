@@ -15,7 +15,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "or batch JSONL requests."
         ),
         "execution_mode_default": "sync",
-        "backends": ["gpt", "gemini", "hf", "os", "ensemble"],
+        "backends": ["gpt", "gemini", "hf", "os"],
         "examples": [
             (
                 "umbrela judge --backend gpt --model gpt-4o "

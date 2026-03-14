@@ -774,6 +774,7 @@ def test_describe_judge_returns_json_envelope(capsys: Any) -> None:
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "describe"
     assert "backends" in output["artifacts"][0]["data"]
+    assert output["artifacts"][0]["data"]["backends"] == ["gpt", "gemini", "hf", "os"]
 
 
 def test_schema_judge_direct_input_returns_json_envelope(capsys: Any) -> None:
@@ -846,7 +847,84 @@ def test_evaluate_dry_run_returns_json_envelope(capsys: Any) -> None:
     assert exit_code == 0
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "evaluate"
-    assert output["mode"] == "dry_run"
+    assert output["mode"] == "dry-run"
+
+
+def test_judge_validate_only_returns_validated_request_without_running_backend(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fail_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        raise AssertionError("judge backend should not run in validate-only mode")
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fail_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--validate-only",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["mode"] == "validate"
+    assert output["artifacts"][0]["name"] == "validated-request"
+
+
+def test_judge_manifest_path_writes_envelope(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    manifest_path = tmp_path / "judge-manifest.json"
+
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--manifest-path",
+            str(manifest_path),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["command"] == "judge"
+    assert manifest == output
 
 
 def test_async_mode_rejected_for_non_gpt(capsys: Any) -> None:

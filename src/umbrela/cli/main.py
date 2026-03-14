@@ -15,6 +15,7 @@ from .introspection import (
     validate_judge_payload,
 )
 from .io import read_jsonl, write_jsonl
+from .logging_utils import setup_logging
 from .normalize import normalize_direct_judge_input
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .responses import CommandResponse
@@ -119,6 +120,13 @@ def _emit_json(data: dict[str, Any]) -> None:
     sys.stdout.write(json.dumps(data) + "\n")
 
 
+def _wants_json(argv: Sequence[str]) -> bool:
+    for index, token in enumerate(argv):
+        if token == "--output" and index + 1 < len(argv):
+            return argv[index + 1] == "json"
+    return False
+
+
 def _build_error_response(error: CLIError) -> CommandResponse:
     return CommandResponse(
         command=error.command,
@@ -129,6 +137,22 @@ def _build_error_response(error: CLIError) -> CommandResponse:
                 "code": error.error_code,
                 "message": error.message,
                 "details": error.details,
+                "retryable": False,
+            }
+        ],
+    )
+
+
+def _build_runtime_error_response(command: str, error: Exception) -> CommandResponse:
+    return CommandResponse(
+        command=command,
+        status="runtime_error",
+        exit_code=RUNTIME_EXIT_CODE,
+        errors=[
+            {
+                "code": "runtime_error",
+                "message": str(error),
+                "details": {},
                 "retryable": False,
             }
         ],
@@ -190,6 +214,15 @@ def _prepare_output_path(
         )
     output_file.parent.mkdir(parents=True, exist_ok=True)
     return str(output_file)
+
+
+def _write_manifest(manifest_path: str | None, response: CommandResponse) -> None:
+    if manifest_path is None:
+        return
+    Path(manifest_path).write_text(
+        json.dumps(response.to_envelope(), indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _filtered_records_from_judgments(
@@ -418,6 +451,11 @@ def build_parser() -> CLIArgumentParser:
         help="Resolve inputs without running the judge backend.",
     )
     judge_parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the declared contract without running the judge backend.",
+    )
+    judge_parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Truncate an existing output file before writing judgments.",
@@ -431,6 +469,18 @@ def build_parser() -> CLIArgumentParser:
         "--fail-if-exists",
         action="store_true",
         help="Fail if the target output path already exists.",
+    )
+    judge_parser.add_argument(
+        "--manifest-path",
+        type=str,
+        help="Write the final JSON envelope to a manifest file.",
+    )
+    judge_parser.add_argument(
+        "--log-level",
+        type=int,
+        default=0,
+        choices=[0, 1, 2],
+        help="Logging verbosity: 0=warnings, 1=info, 2=debug.",
     )
 
     evaluate_parser = subparsers.add_parser(
@@ -499,6 +549,11 @@ def build_parser() -> CLIArgumentParser:
         help="Validate evaluation prerequisites without running judge backends.",
     )
     evaluate_parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the declared contract without running judge backends.",
+    )
+    evaluate_parser.add_argument(
         "--llm-judges",
         type=str,
         help="Comma-separated judge backends for ensemble evaluation.",
@@ -534,6 +589,18 @@ def build_parser() -> CLIArgumentParser:
         type=str,
         default="cuda",
         help="Execution device for local Hugging Face or FastChat backends.",
+    )
+    evaluate_parser.add_argument(
+        "--manifest-path",
+        type=str,
+        help="Write the final JSON envelope to a manifest file.",
+    )
+    evaluate_parser.add_argument(
+        "--log-level",
+        type=int,
+        default=0,
+        choices=[0, 1, 2],
+        help="Logging verbosity: 0=warnings, 1=info, 2=debug.",
     )
 
     describe_parser = subparsers.add_parser(
@@ -679,6 +746,7 @@ def _format_text_judgments(
 
 
 def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
+    setup_logging(getattr(args, "log_level", 0))
     if args.execution_mode == "async" and args.backend != "gpt":
         raise CLIError(
             "--execution-mode async is currently supported only for --backend gpt",
@@ -741,6 +809,10 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             validation=validation,
             artifacts=[make_data_artifact("judgments", judgments)],
         )
+        if args.dry_run or args.validate_only:
+            response.mode = "validate" if args.validate_only else "dry-run"
+            response.artifacts = []
+            return response
         if args.output_file is not None and not args.dry_run:
             output_path = _prepare_output_path(args, command="judge")
             write_jsonl(output_path, judgments)
@@ -765,7 +837,19 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
     payload = _read_direct_payload(args)
     validation = validate_judge_payload(payload)
     normalized = normalize_direct_judge_input(payload)
-    judgments = [] if args.dry_run else run_judge_direct(normalized, args)
+    if args.dry_run or args.validate_only:
+        return CommandResponse(
+            command="judge",
+            mode="validate" if args.validate_only else "dry-run",
+            inputs={"mode": "direct", "backend": args.backend},
+            resolved={
+                "execution_mode": args.execution_mode,
+                "normalized_request": normalized,
+            },
+            validation=validation,
+            artifacts=[make_data_artifact("validated-request", normalized)],
+        )
+    judgments = run_judge_direct(normalized, args)
     if not args.include_reasoning:
         for judgment in judgments:
             judgment.pop("reasoning", None)
@@ -782,6 +866,7 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
 
 
 def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
+    setup_logging(getattr(args, "log_level", 0))
     if args.backend != "ensemble" and not args.model:
         raise CLIError(
             "evaluate requires --model unless --backend ensemble is used",
@@ -802,10 +887,10 @@ def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
         _ensure_file_exists(
             args.result_file, command="evaluate", field_name="result_file"
         )
-    if args.dry_run:
+    if args.dry_run or args.validate_only:
         return CommandResponse(
             command="evaluate",
-            mode="dry_run",
+            mode="validate" if args.validate_only else "dry-run",
             inputs={
                 "backend": args.backend,
                 "qrel": args.qrel,
@@ -992,35 +1077,29 @@ def _run_command(args: argparse.Namespace) -> CommandResponse:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
+    wants_json = _wants_json(argv)
     try:
         args = parser.parse_args(argv)
         response = _run_command(args)
     except CLIError as error:
         response = _build_error_response(error)
-        if getattr(error, "command", "unknown") == "unknown" and (
-            argv is None or "--output" not in argv or "json" not in argv
-        ):
+        if not wants_json:
             sys.stderr.write(error.message + "\n")
             return error.exit_code
         _emit_json(response.to_envelope())
         return error.exit_code
     except Exception as error:  # noqa: BLE001
-        response = CommandResponse(
-            command=getattr(locals().get("args", None), "command", "unknown"),
-            status="runtime_error",
-            exit_code=RUNTIME_EXIT_CODE,
-            errors=[
-                {
-                    "code": "runtime_error",
-                    "message": str(error),
-                    "details": {},
-                    "retryable": False,
-                }
-            ],
-        )
-        _emit_json(response.to_envelope())
+        command = _detect_command(argv)
+        response = _build_runtime_error_response(command, error)
+        if wants_json:
+            _emit_json(response.to_envelope())
+        else:
+            sys.stderr.write(f"{error}\n")
         return RUNTIME_EXIT_CODE
+
+    _write_manifest(getattr(args, "manifest_path", None), response)
 
     if getattr(args, "output", "text") == "json":
         _emit_json(response.to_envelope())
