@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "or batch JSONL requests."
         ),
         "execution_mode_default": "sync",
+        "inspection_safe": False,
         "backends": ["gpt", "gemini", "hf", "os"],
         "examples": [
             (
@@ -51,6 +53,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "Generate modified qrels and evaluation metrics "
             "using a selected judge backend."
         ),
+        "inspection_safe": False,
         "examples": [
             (
                 "umbrela evaluate --backend gpt --model gpt-4o "
@@ -65,20 +68,24 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "umbrela view judgments.jsonl --records 1 --show-prompts",
         ],
         "supported_types": ["judge-output"],
+        "inspection_safe": True,
     },
     "describe": {
         "summary": "Inspect structured metadata for a public Umbrela command.",
+        "inspection_safe": True,
     },
     "schema": {
         "summary": (
             "Print JSON schemas for supported Umbrela inputs, outputs, and envelopes."
         ),
+        "inspection_safe": True,
     },
     "doctor": {
         "summary": (
             "Report environment, dependency, and backend readiness for "
             "the packaged Umbrela CLI."
         ),
+        "inspection_safe": True,
     },
     "validate": {
         "summary": (
@@ -86,6 +93,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "prerequisites without running models."
         ),
         "targets": ["judge", "evaluate"],
+        "inspection_safe": True,
     },
 }
 
@@ -217,6 +225,11 @@ def doctor_report() -> dict[str, Any]:
     )
     gemini_ready = bool(os.getenv("GCLOUD_PROJECT") and os.getenv("GCLOUD_REGION"))
     hf_ready = bool(os.getenv("HF_TOKEN"))
+    openai_dep_ready = importlib.util.find_spec("openai") is not None
+    vertexai_dep_ready = importlib.util.find_spec("vertexai") is not None
+    torch_dep_ready = importlib.util.find_spec("torch") is not None
+    transformers_dep_ready = importlib.util.find_spec("transformers") is not None
+    fastchat_dep_ready = importlib.util.find_spec("fastchat") is not None
 
     def status(
         *,
@@ -242,22 +255,48 @@ def doctor_report() -> dict[str, Any]:
 
     backend_readiness = {
         "gpt": status(
-            ready=python_ok and (openai_ready or openrouter_ready or azure_ready),
+            ready=python_ok
+            and openai_dep_ready
+            and (openai_ready or openrouter_ready or azure_ready),
             missing_env=[]
             if (openai_ready or openrouter_ready or azure_ready)
             else [
                 "OPENAI_API_KEY or OPENROUTER_API_KEY or Azure OpenAI settings",
             ],
+            missing_deps=[] if openai_dep_ready else ["openai"],
         ),
         "gemini": status(
-            ready=python_ok and gemini_ready,
+            ready=python_ok and gemini_ready and vertexai_dep_ready,
             missing_env=[] if gemini_ready else ["GCLOUD_PROJECT", "GCLOUD_REGION"],
+            missing_deps=[] if vertexai_dep_ready else ["vertexai"],
         ),
         "hf": status(
-            ready=python_ok and hf_ready,
+            ready=python_ok and hf_ready and torch_dep_ready and transformers_dep_ready,
             missing_env=[] if hf_ready else ["HF_TOKEN"],
+            missing_deps=[
+                dependency
+                for dependency, available in (
+                    ("torch", torch_dep_ready),
+                    ("transformers", transformers_dep_ready),
+                )
+                if not available
+            ],
         ),
-        "os": status(ready=python_ok),
+        "os": status(
+            ready=python_ok
+            and torch_dep_ready
+            and transformers_dep_ready
+            and fastchat_dep_ready,
+            missing_deps=[
+                dependency
+                for dependency, available in (
+                    ("torch", torch_dep_ready),
+                    ("transformers", transformers_dep_ready),
+                    ("fastchat", fastchat_dep_ready),
+                )
+                if not available
+            ],
+        ),
         "ensemble": status(ready=python_ok),
     }
     command_readiness = {

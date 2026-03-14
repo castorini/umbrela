@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+import umbrela.cli.introspection as introspection
 from umbrela.cli.main import main
 
 
@@ -640,7 +641,7 @@ def test_view_judgments_returns_json_summary(tmp_path: Path, capsys: Any) -> Non
         [
             {
                 "model": "gpt-4o",
-                "query": "Q" * 180,
+                "query": "Q" * 100,
                 "passage": "P" * 120,
                 "prompt": "prompt text " * 30,
                 "prediction": "##final score: 2",
@@ -676,7 +677,7 @@ def test_view_judgments_returns_json_summary(tmp_path: Path, capsys: Any) -> Non
     }
     assert len(output["artifacts"][0]["data"]["sampled_records"]) == 1
     assert "prompt" not in output["artifacts"][0]["data"]["sampled_records"][0]
-    assert output["artifacts"][0]["data"]["sampled_records"][0]["query"] == "Q" * 180
+    assert output["artifacts"][0]["data"]["sampled_records"][0]["query"] == "Q" * 100
 
 
 def test_view_judgments_text_hides_prompts_by_default(
@@ -795,6 +796,40 @@ def test_doctor_returns_json_envelope(capsys: Any) -> None:
     assert "python_version" in output["metrics"]
     assert "openrouter" in output["metrics"]["provider_keys"]
     assert "backend_readiness" in output["metrics"]
+
+
+def test_doctor_reports_missing_dependencies(monkeypatch: Any, capsys: Any) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("GCLOUD_PROJECT", "test-project")
+    monkeypatch.setenv("GCLOUD_REGION", "europe-west4")
+    monkeypatch.setenv("HF_TOKEN", "test-token")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_API_BASE", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_API_VERSION", raising=False)
+
+    available_modules = {"torch"}
+
+    def fake_find_spec(name: str) -> object | None:
+        return object() if name in available_modules else None
+
+    monkeypatch.setattr(introspection.importlib.util, "find_spec", fake_find_spec)
+
+    exit_code = main(["doctor", "--output", "json"])
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    backend_readiness = output["metrics"]["backend_readiness"]
+    assert backend_readiness["gpt"]["status"] == "missing_dependency"
+    assert backend_readiness["gpt"]["missing_dependencies"] == ["openai"]
+    assert backend_readiness["gemini"]["status"] == "missing_dependency"
+    assert backend_readiness["gemini"]["missing_dependencies"] == ["vertexai"]
+    assert backend_readiness["hf"]["status"] == "missing_dependency"
+    assert backend_readiness["hf"]["missing_dependencies"] == ["transformers"]
+    assert backend_readiness["os"]["status"] == "missing_dependency"
+    assert backend_readiness["os"]["missing_dependencies"] == [
+        "transformers",
+        "fastchat",
+    ]
 
 
 def test_top_level_help_includes_command_summaries(capsys: Any) -> None:

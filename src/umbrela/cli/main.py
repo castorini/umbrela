@@ -953,7 +953,6 @@ def _run_doctor_command() -> CommandResponse:
 
 
 def _run_view_command(args: argparse.Namespace) -> CommandResponse:
-    _ensure_file_exists(args.path, command="view", field_name="path")
     try:
         records = load_records(args.path)
         artifact_type = detect_artifact_type(records, args.artifact_type)

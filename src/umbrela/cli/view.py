@@ -29,7 +29,7 @@ class ViewError(ValueError):
     """Raised when a file cannot be viewed as a supported Umbrela artifact."""
 
 
-def color_enabled(color: str) -> bool:
+def _color_enabled(color: str) -> bool:
     if color == "always":
         return True
     if color == "never":
@@ -37,15 +37,17 @@ def color_enabled(color: str) -> bool:
     return sys.stdout.isatty()
 
 
-def style(text: str, color: str, enabled: bool) -> str:
+def _style(text: str, color: str, enabled: bool) -> str:
     if not enabled:
         return text
     return f"{ANSI_CODES[color]}{text}{ANSI_CODES['reset']}"
 
 
-def truncate(text: str, limit: int = 120) -> str:
-    del limit
-    return " ".join(text.split())
+def _truncate(text: str, limit: int = 120) -> str:
+    collapsed = " ".join(text.split())
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[: limit - 1] + "\u2026"
 
 
 def load_records(path: str) -> list[dict[str, Any]]:
@@ -66,11 +68,7 @@ def load_records(path: str) -> list[dict[str, Any]]:
             if isinstance(payload, list):
                 return payload
             raise ViewError(f"unsupported JSON payload in {path}")
-        records = [
-            json.loads(line)
-            for line in raw_text.splitlines()
-            if line.strip()
-        ]
+        records = [json.loads(line) for line in raw_text.splitlines() if line.strip()]
     except json.JSONDecodeError as exc:
         raise ViewError(f"file is not valid JSON/JSONL: {path}") from exc
 
@@ -92,9 +90,7 @@ def detect_artifact_type(
     first_record = records[0]
     if JUDGE_REQUIRED_KEYS.issubset(first_record.keys()):
         return "judge-output"
-    raise ViewError(
-        "could not detect Umbrela artifact type; use --type judge-output"
-    )
+    raise ViewError("could not detect Umbrela artifact type; use --type judge-output")
 
 
 def summarize_judgments(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -131,12 +127,12 @@ def build_view_summary(
         item = {
             "judgment": record["judgment"],
             "result_status": record["result_status"],
-            "query": truncate(str(record["query"]), 140),
-            "passage": truncate(str(record["passage"]), 160),
-            "prediction": truncate(str(record["prediction"]), 120),
+            "query": _truncate(str(record["query"]), 140),
+            "passage": _truncate(str(record["passage"]), 160),
+            "prediction": _truncate(str(record["prediction"]), 120),
         }
         if show_prompts and record.get("prompt"):
-            item["prompt"] = truncate(str(record["prompt"]), 240)
+            item["prompt"] = _truncate(str(record["prompt"]), 240)
         sampled_records.append(item)
 
     return {
@@ -150,24 +146,22 @@ def build_view_summary(
 
 
 def render_view_summary(view: dict[str, Any], *, color: str) -> str:
-    enabled = color_enabled(color)
+    enabled = _color_enabled(color)
     lines = [
-        style("Umbrela View", "bold", enabled),
+        _style("Umbrela View", "bold", enabled),
         f"path: {view['path']}",
         f"type: {view['artifact_type']}",
         f"records: {view['summary']['record_count']}",
     ]
     histogram = view["summary"]["score_histogram"]
-    histogram_text = ", ".join(
-        f"{score}={count}" for score, count in histogram.items()
-    )
+    histogram_text = ", ".join(f"{score}={count}" for score, count in histogram.items())
     lines.append(f"scores: {histogram_text}")
     lines.append(f"invalid: {view['summary']['invalid_count']}")
 
     for index, record in enumerate(view["sampled_records"], start=1):
         status_value = int(record["result_status"])
-        score_text = style(str(record["judgment"]), "green", enabled)
-        status_text = style(
+        score_text = _style(str(record["judgment"]), "green", enabled)
+        status_text = _style(
             str(status_value),
             "yellow" if status_value else "red",
             enabled,
