@@ -667,15 +667,15 @@ def _format_text_judgments(
 ) -> str:
     blocks: list[str] = []
     for judgment in judgments:
-        lines = [f"score: {judgment['judgment']}"]
-        lines.append(f"query: {judgment['query']}")
-        lines.append(f"passage: {judgment['passage']}")
+        lines = [f"query: {judgment['query']}"]
+        lines.append(f"candidate: {judgment['passage']}")
+        lines.append(f"judgment: {judgment['judgment']}")
         if int(judgment.get("result_status", 1)) == 0:
             lines.append("parsing failed")
         if include_reasoning and judgment.get("reasoning"):
             lines.append(f"reasoning: {judgment['reasoning']}")
         blocks.append("\n".join(lines))
-    return "\n\n".join(blocks)
+    return "\n-----\n".join(blocks)
 
 
 def _run_judge_command(args: argparse.Namespace) -> CommandResponse:

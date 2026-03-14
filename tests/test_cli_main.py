@@ -119,7 +119,7 @@ def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> No
     assert output["artifacts"][0]["data"][0]["reasoning"] == "reasoning content"
 
 
-def test_direct_judge_text_output_uses_score_and_reasoning(
+def test_direct_judge_text_output_uses_query_candidate_judgment_reasoning(
     monkeypatch: Any, capsys: Any
 ) -> None:
     def fake_run_judge_direct(
@@ -156,7 +156,7 @@ def test_direct_judge_text_output_uses_score_and_reasoning(
 
     assert exit_code == 0
     assert capsys.readouterr().out == (
-        "score: 2\nquery: q\npassage: p\nreasoning: reasoning content\n"
+        "query: q\ncandidate: p\njudgment: 2\nreasoning: reasoning content\n"
     )
 
 
@@ -195,7 +195,56 @@ def test_direct_judge_text_output_marks_parsing_failure(
 
     assert exit_code == 0
     assert capsys.readouterr().out == (
-        "score: 0\nquery: q\npassage: p\nparsing failed\n"
+        "query: q\ncandidate: p\njudgment: 0\nparsing failed\n"
+    )
+
+
+def test_direct_judge_text_output_separates_multiple_records(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict, args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q1",
+                "passage": "p1",
+                "prompt": "prompt",
+                "prediction": "1",
+                "judgment": 1,
+                "result_status": 1,
+            },
+            {
+                "model": "gpt-4o",
+                "query": "q2",
+                "passage": "p2",
+                "prompt": "prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            },
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "query: q1\ncandidate: p1\njudgment: 1\n-----\n"
+        "query: q2\ncandidate: p2\njudgment: 2\n"
     )
 
 
