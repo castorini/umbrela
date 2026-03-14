@@ -56,6 +56,10 @@ class UmbrelaLiveOpenAISmokeTests(unittest.TestCase):
                     "gpt",
                     "--model",
                     model,
+                    "--execution-mode",
+                    "async",
+                    "--max-concurrency",
+                    "4",
                     "--input-json",
                     json.dumps(
                         {
