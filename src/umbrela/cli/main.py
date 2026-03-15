@@ -783,6 +783,22 @@ def build_parser() -> CLIArgumentParser:
         help="Candidate index to render from the direct input payload.",
     )
     prompt_render_parser.add_argument(
+        "--qrel",
+        type=str,
+        help="Named qrel used to generate few-shot examples when --few-shot-count > 0.",
+    )
+    prompt_render_examples = prompt_render_parser.add_mutually_exclusive_group()
+    prompt_render_examples.add_argument(
+        "--examples-text",
+        type=str,
+        help="Explicit example block to inject into the rendered prompt.",
+    )
+    prompt_render_examples.add_argument(
+        "--examples-file",
+        type=str,
+        help="File containing the exact example block to inject into the rendered prompt.",
+    )
+    prompt_render_parser.add_argument(
         "--part",
         choices=["system", "user", "all"],
         default="all",
@@ -1130,14 +1146,6 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
             },
             artifacts=[make_data_artifact("prompt-template", view)],
         )
-    if args.few_shot_count != 0:
-        raise CLIError(
-            "prompt render currently supports only --few-shot-count 0",
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="unsupported_few_shot_render",
-            command="prompt",
-        )
     payload = _read_direct_payload(args)
     normalized = normalize_direct_judge_input(payload)
     candidates = cast(list[dict[str, Any]], normalized["candidates"])
@@ -1160,6 +1168,33 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
     )
     query = str(cast(dict[str, Any], normalized["query"])["text"])
     passage = str(candidates[args.candidate_index]["doc"]["segment"])
+    if args.examples_file is not None:
+        _ensure_file_exists(args.examples_file, command="prompt", field_name="examples_file")
+        examples = Path(args.examples_file).read_text(encoding="utf-8")
+    elif args.examples_text is not None:
+        examples = args.examples_text
+    elif args.few_shot_count > 0:
+        if args.qrel is None:
+            raise CLIError(
+                "prompt render with --few-shot-count > 0 requires --qrel, --examples-text, or --examples-file",
+                exit_code=INVALID_ARGS_EXIT_CODE,
+                status="validation_error",
+                error_code="missing_prompt_examples",
+                command="prompt",
+            )
+        try:
+            examples = qrel_utils.generate_examples_prompt(args.qrel, args.few_shot_count)
+        except Exception as error:  # noqa: BLE001
+            raise CLIError(
+                f"Unable to generate prompt examples: {error}",
+                exit_code=VALIDATION_EXIT_CODE,
+                status="validation_error",
+                error_code="prompt_example_generation_failed",
+                command="prompt",
+                details={"qrel": args.qrel, "few_shot_count": args.few_shot_count},
+            ) from error
+    else:
+        examples = ""
     view = build_rendered_prompt_view(
         template,
         prompt_file=args.prompt_file,
@@ -1168,8 +1203,9 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
         candidate_index=args.candidate_index,
         query=query,
         passage=passage,
-        examples="",
+        examples=examples,
     )
+    view["selector"]["qrel"] = args.qrel
     return CommandResponse(
         command="prompt",
         mode="inspect",
@@ -1180,6 +1216,7 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
             "prompt_type": view["selector"]["prompt_type"],
             "few_shot_count": view["selector"]["few_shot_count"],
             "candidate_index": view["selector"]["candidate_index"],
+            "qrel": args.qrel,
             "part": args.part,
         },
         artifacts=[make_data_artifact("rendered-prompt", view)],

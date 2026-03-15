@@ -76,6 +76,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             "umbrela prompt list",
             "umbrela prompt show --prompt-type bing --few-shot-count 0",
             'umbrela prompt render --prompt-type basic --input-json \'{"query":"q","candidates":["p"]}\'',
+            'umbrela prompt render --prompt-type basic --few-shot-count 2 --qrel dl19-passage --input-json \'{"query":"q","candidates":["p"]}\'',
             "umbrela prompt show --prompt-file custom.yaml --output json",
         ],
         "inspection_safe": True,

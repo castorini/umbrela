@@ -147,6 +147,8 @@ def render_rendered_prompt_text(view: dict[str, Any], *, part: str) -> str:
     else:
         lines.append(f"prompt_type: {selector['prompt_type']}")
         lines.append(f"few_shot_count: {selector['few_shot_count']}")
+    if selector.get("qrel") is not None:
+        lines.append(f"qrel: {selector['qrel']}")
     lines.append(f"candidate_index: {selector['candidate_index']}")
     lines.append(f"query: {inputs['query']}")
     lines.append(f"passage: {inputs['passage']}")

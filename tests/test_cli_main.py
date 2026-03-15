@@ -909,7 +909,93 @@ def test_prompt_render_returns_json_envelope(capsys: Any) -> None:
     assert "Passage: p" in rendered["messages"]["user"]
 
 
-def test_prompt_render_rejects_few_shot_before_example_support(capsys: Any) -> None:
+def test_prompt_render_few_shot_uses_examples_text(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--few-shot-count",
+            "2",
+            "--examples-text",
+            "demo examples",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+        ]
+    )
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "few_shot_count: 2" in stdout
+    assert "demo examples" in stdout
+
+
+def test_prompt_render_few_shot_uses_examples_file(tmp_path: Path, capsys: Any) -> None:
+    examples_path = tmp_path / "examples.txt"
+    examples_path.write_text("examples from file", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--few-shot-count",
+            "2",
+            "--examples-file",
+            str(examples_path),
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    rendered = output["artifacts"][0]["data"]
+    assert rendered["inputs"]["examples"] == "examples from file"
+
+
+def test_prompt_render_few_shot_generates_examples_from_qrel(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_generate_examples_prompt(qrel: str, few_shot_count: int) -> str:
+        assert qrel == "dl19-passage"
+        assert few_shot_count == 2
+        return "generated examples"
+
+    monkeypatch.setattr(
+        "umbrela.cli.main.qrel_utils.generate_examples_prompt",
+        fake_generate_examples_prompt,
+    )
+
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--few-shot-count",
+            "2",
+            "--qrel",
+            "dl19-passage",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    rendered = output["artifacts"][0]["data"]
+    assert rendered["selector"]["qrel"] == "dl19-passage"
+    assert rendered["inputs"]["examples"] == "generated examples"
+
+
+def test_prompt_render_few_shot_requires_qrel_or_examples(capsys: Any) -> None:
     exit_code = main(
         [
             "prompt",
@@ -925,10 +1011,45 @@ def test_prompt_render_rejects_few_shot_before_example_support(capsys: Any) -> N
         ]
     )
 
+    assert exit_code == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    assert output["errors"][0]["code"] == "missing_prompt_examples"
+
+
+def test_prompt_render_reports_example_generation_failure(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fail_generate_examples_prompt(qrel: str, few_shot_count: int) -> str:
+        del qrel, few_shot_count
+        raise RuntimeError("pyserini missing")
+
+    monkeypatch.setattr(
+        "umbrela.cli.main.qrel_utils.generate_examples_prompt",
+        fail_generate_examples_prompt,
+    )
+
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--few-shot-count",
+            "2",
+            "--qrel",
+            "dl19-passage",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
     assert exit_code == 5
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "prompt"
-    assert output["errors"][0]["code"] == "unsupported_few_shot_render"
+    assert output["errors"][0]["code"] == "prompt_example_generation_failed"
 
 
 def test_prompt_render_rejects_invalid_candidate_index(capsys: Any) -> None:
