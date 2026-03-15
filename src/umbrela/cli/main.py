@@ -10,6 +10,7 @@ from typing import Any, NoReturn, Sequence, cast
 import shtab
 
 from .adapters import make_data_artifact, make_file_artifact
+from .config import load_config
 from .introspection import (
     COMMAND_DESCRIPTIONS,
     SCHEMAS,
@@ -1084,8 +1085,11 @@ def _run_schema_command(args: argparse.Namespace) -> CommandResponse:
     )
 
 
-def _run_doctor_command() -> CommandResponse:
+def _run_doctor_command(
+    *, config_path: Path | None = None
+) -> CommandResponse:
     report = doctor_report()
+    report["config_file"] = str(config_path) if config_path else None
     return CommandResponse(
         command="doctor",
         mode="inspect",
@@ -1320,7 +1324,7 @@ def _run_command(args: argparse.Namespace) -> CommandResponse:
     if args.command == "schema":
         return _run_schema_command(args)
     if args.command == "doctor":
-        return _run_doctor_command()
+        return _run_doctor_command(config_path=getattr(args, "_config_path", None))
     if args.command == "validate":
         return _run_validate_command(args)
     raise CLIError(
@@ -1335,9 +1339,15 @@ def _run_command(args: argparse.Namespace) -> CommandResponse:
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
+    config, config_path = load_config()
     wants_json = _wants_json(argv)
     try:
         args = parser.parse_args(argv)
+        args._config_path = config_path
+        for key, value in config.items():
+            flag = f"--{key.replace('_', '-')}"
+            if flag not in argv:
+                setattr(args, key, value)
         response = _run_command(args)
     except CLIError as error:
         response = _build_error_response(error)
