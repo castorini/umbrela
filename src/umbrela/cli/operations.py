@@ -4,11 +4,13 @@ import asyncio
 import contextlib
 import io
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 from umbrela.utils import common_utils, qrel_utils
 
@@ -95,8 +97,11 @@ def run_judge_batch(
     records: list[dict[str, Any]],
     args: Any,
 ) -> list[dict[str, Any]]:
+    quiet = getattr(args, "quiet", False)
+    output_format = getattr(args, "output", "text")
+    disable_progress = quiet or output_format in ("json", "jsonl") or not sys.stderr.isatty()
     judgments: list[dict[str, Any]] = []
-    for record in records:
+    for record in tqdm(records, desc="Judging", file=sys.stderr, disable=disable_progress):
         judgments.extend(run_judge_direct(record, args))
     return judgments
 

@@ -25,6 +25,63 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+def test_batch_json_output_suppresses_progress_bar(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    input_path = tmp_path / "requests.jsonl"
+    output_path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        input_path,
+        [
+            {
+                "query": {"qid": "q1", "text": "what is python used for"},
+                "candidates": [
+                    {
+                        "docid": "d1",
+                        "doc": {"segment": "Python is used for web development."},
+                    }
+                ],
+            }
+        ],
+    )
+
+    def fake_run_judge_batch(
+        records: list[dict[str, Any]], args: Any
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q",
+                "passage": "p",
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_batch", fake_run_judge_batch)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-file",
+            str(input_path),
+            "--output-file",
+            str(output_path),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().err == ""
+
+
 def test_quiet_flag_suppresses_stderr(capsys: Any) -> None:
     exit_code = main(["--quiet", "doctor", "--output", "json"])
 
