@@ -75,10 +75,11 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "examples": [
             "umbrela prompt list",
             "umbrela prompt show --prompt-type bing --few-shot-count 0",
+            'umbrela prompt render --prompt-type basic --input-json \'{"query":"q","candidates":["p"]}\'',
             "umbrela prompt show --prompt-file custom.yaml --output json",
         ],
         "inspection_safe": True,
-        "subcommands": ["list", "show"],
+        "subcommands": ["list", "show", "render"],
     },
     "describe": {
         "summary": "Inspect structured metadata for a public Umbrela command.",
@@ -207,6 +208,10 @@ SCHEMAS: dict[str, dict[str, Any]] = {
     "prompt-template": {
         "type": "object",
         "required": ["selector", "template"],
+    },
+    "rendered-prompt": {
+        "type": "object",
+        "required": ["selector", "messages", "inputs"],
     },
     "doctor-output": {
         "type": "object",

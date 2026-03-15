@@ -98,3 +98,64 @@ def render_prompt_template_text(view: dict[str, Any]) -> str:
     lines.append("[user]")
     lines.append(template["prefix_user"])
     return "\n".join(lines)
+
+
+def build_rendered_prompt_view(
+    template: PromptTemplate,
+    *,
+    prompt_file: str | None,
+    prompt_type: str | None,
+    few_shot_count: int,
+    candidate_index: int,
+    query: str,
+    passage: str,
+    examples: str,
+) -> dict[str, Any]:
+    resolved_prompt_file = None
+    if prompt_file is not None:
+        resolved_prompt_file = str(Path(prompt_file).resolve())
+    return {
+        "selector": {
+            "prompt_file": resolved_prompt_file,
+            "prompt_type": prompt_type,
+            "few_shot_count": few_shot_count,
+            "candidate_index": candidate_index,
+        },
+        "messages": {
+            "system": template.system_message,
+            "user": template.render(
+                examples=examples,
+                query=query,
+                passage=passage,
+            ),
+        },
+        "inputs": {
+            "query": query,
+            "passage": passage,
+            "examples": examples,
+        },
+    }
+
+
+def render_rendered_prompt_text(view: dict[str, Any], *, part: str) -> str:
+    selector = view["selector"]
+    messages = view["messages"]
+    inputs = view["inputs"]
+    lines = ["Umbrela Rendered Prompt"]
+    if selector["prompt_file"] is not None:
+        lines.append(f"prompt_file: {selector['prompt_file']}")
+    else:
+        lines.append(f"prompt_type: {selector['prompt_type']}")
+        lines.append(f"few_shot_count: {selector['few_shot_count']}")
+    lines.append(f"candidate_index: {selector['candidate_index']}")
+    lines.append(f"query: {inputs['query']}")
+    lines.append(f"passage: {inputs['passage']}")
+    if part in {"system", "all"}:
+        lines.append("")
+        lines.append("[system]")
+        lines.append(messages["system"] or "(empty)")
+    if part in {"user", "all"}:
+        lines.append("")
+        lines.append("[user]")
+        lines.append(messages["user"])
+    return "\n".join(lines)

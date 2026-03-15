@@ -20,8 +20,10 @@ from .normalize import normalize_direct_judge_input
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .prompt_view import (
     build_prompt_template_view,
+    build_rendered_prompt_view,
     list_prompt_templates,
     render_prompt_catalog_text,
+    render_rendered_prompt_text,
     render_prompt_template_text,
     resolve_prompt_template,
 )
@@ -740,6 +742,59 @@ def build_parser() -> CLIArgumentParser:
         help="Human-readable template or JSON envelope.",
     )
 
+    prompt_render_parser = prompt_subparsers.add_parser(
+        "render",
+        help="Render a built-in or custom prompt template against direct input.",
+    )
+    prompt_render_source = prompt_render_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    prompt_render_source.add_argument(
+        "--prompt-file", type=str, help="Custom YAML prompt template to render."
+    )
+    prompt_render_source.add_argument(
+        "--prompt-type",
+        choices=["basic", "bing"],
+        help="Built-in prompt template family to render.",
+    )
+    prompt_render_inputs = prompt_render_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    prompt_render_inputs.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read one direct JSON payload from standard input.",
+    )
+    prompt_render_inputs.add_argument(
+        "--input-json",
+        type=str,
+        help="Direct JSON payload in the shared query-candidate schema.",
+    )
+    prompt_render_parser.add_argument(
+        "--few-shot-count",
+        type=int,
+        default=0,
+        help="Few-shot count used to resolve the prompt template.",
+    )
+    prompt_render_parser.add_argument(
+        "--candidate-index",
+        type=int,
+        default=0,
+        help="Candidate index to render from the direct input payload.",
+    )
+    prompt_render_parser.add_argument(
+        "--part",
+        choices=["system", "user", "all"],
+        default="all",
+        help="Rendered prompt section to show in text mode.",
+    )
+    prompt_render_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable rendered prompt or JSON envelope.",
+    )
+
     validate_parser = subparsers.add_parser(
         "validate",
         help=(
@@ -1052,28 +1107,82 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
             resolved={"prompt_command": "list"},
             artifacts=[make_data_artifact("prompt-catalog", catalog)],
         )
-
+    if args.prompt_command == "show":
+        template = resolve_prompt_template(
+            prompt_file=args.prompt_file,
+            prompt_type=args.prompt_type,
+            few_shot_count=args.few_shot_count,
+        )
+        view = build_prompt_template_view(
+            template,
+            prompt_file=args.prompt_file,
+            prompt_type=args.prompt_type,
+            few_shot_count=args.few_shot_count,
+        )
+        return CommandResponse(
+            command="prompt",
+            mode="inspect",
+            resolved={
+                "prompt_command": "show",
+                "prompt_file": view["selector"]["prompt_file"],
+                "prompt_type": view["selector"]["prompt_type"],
+                "few_shot_count": view["selector"]["few_shot_count"],
+            },
+            artifacts=[make_data_artifact("prompt-template", view)],
+        )
+    if args.few_shot_count != 0:
+        raise CLIError(
+            "prompt render currently supports only --few-shot-count 0",
+            exit_code=VALIDATION_EXIT_CODE,
+            status="validation_error",
+            error_code="unsupported_few_shot_render",
+            command="prompt",
+        )
+    payload = _read_direct_payload(args)
+    normalized = normalize_direct_judge_input(payload)
+    candidates = cast(list[dict[str, Any]], normalized["candidates"])
+    if not 0 <= args.candidate_index < len(candidates):
+        raise CLIError(
+            "--candidate-index is out of range for the input payload",
+            exit_code=VALIDATION_EXIT_CODE,
+            status="validation_error",
+            error_code="invalid_candidate_index",
+            command="prompt",
+            details={
+                "candidate_index": args.candidate_index,
+                "candidate_count": len(candidates),
+            },
+        )
     template = resolve_prompt_template(
         prompt_file=args.prompt_file,
         prompt_type=args.prompt_type,
         few_shot_count=args.few_shot_count,
     )
-    view = build_prompt_template_view(
+    query = str(cast(dict[str, Any], normalized["query"])["text"])
+    passage = str(candidates[args.candidate_index]["doc"]["segment"])
+    view = build_rendered_prompt_view(
         template,
         prompt_file=args.prompt_file,
         prompt_type=args.prompt_type,
         few_shot_count=args.few_shot_count,
+        candidate_index=args.candidate_index,
+        query=query,
+        passage=passage,
+        examples="",
     )
     return CommandResponse(
         command="prompt",
         mode="inspect",
+        inputs={"mode": "direct"},
         resolved={
-            "prompt_command": "show",
+            "prompt_command": "render",
             "prompt_file": view["selector"]["prompt_file"],
             "prompt_type": view["selector"]["prompt_type"],
             "few_shot_count": view["selector"]["few_shot_count"],
+            "candidate_index": view["selector"]["candidate_index"],
+            "part": args.part,
         },
-        artifacts=[make_data_artifact("prompt-template", view)],
+        artifacts=[make_data_artifact("rendered-prompt", view)],
     )
 
 
@@ -1228,10 +1337,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 + "\n"
             )
-        else:
+        elif args.prompt_command == "show":
             sys.stdout.write(
                 render_prompt_template_text(
                     cast(dict[str, Any], response.artifacts[0]["data"])
+                )
+                + "\n"
+            )
+        else:
+            sys.stdout.write(
+                render_rendered_prompt_text(
+                    cast(dict[str, Any], response.artifacts[0]["data"]),
+                    part=args.part,
                 )
                 + "\n"
             )

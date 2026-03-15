@@ -858,6 +858,101 @@ def test_prompt_show_requires_template_selector(capsys: Any) -> None:
     assert output["errors"][0]["code"] == "invalid_arguments"
 
 
+def test_prompt_render_builtin_returns_text_prompt(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p0", "p1"]}),
+            "--candidate-index",
+            "1",
+            "--part",
+            "user",
+        ]
+    )
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "Umbrela Rendered Prompt" in stdout
+    assert "prompt_type: basic" in stdout
+    assert "candidate_index: 1" in stdout
+    assert "passage: p1" in stdout
+    assert "[system]" not in stdout
+    assert "[user]" in stdout
+    assert "Query: q" in stdout
+    assert "Passage: p1" in stdout
+
+
+def test_prompt_render_returns_json_envelope(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "bing",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    rendered = output["artifacts"][0]["data"]
+    assert rendered["messages"]["system"] == ""
+    assert "Query: q" in rendered["messages"]["user"]
+    assert "Passage: p" in rendered["messages"]["user"]
+
+
+def test_prompt_render_rejects_few_shot_before_example_support(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--few-shot-count",
+            "2",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 5
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    assert output["errors"][0]["code"] == "unsupported_few_shot_render"
+
+
+def test_prompt_render_rejects_invalid_candidate_index(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "render",
+            "--prompt-type",
+            "basic",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--candidate-index",
+            "2",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 5
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    assert output["errors"][0]["code"] == "invalid_candidate_index"
+
+
 def test_doctor_returns_json_envelope(capsys: Any) -> None:
     exit_code = main(["doctor", "--output", "json"])
 
