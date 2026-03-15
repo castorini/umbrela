@@ -25,6 +25,34 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+def test_no_color_env_suppresses_ansi_codes(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    monkeypatch.setenv("NO_COLOR", "")
+    path = tmp_path / "judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "model": "gpt-4o",
+                "query": "query",
+                "passage": "passage",
+                "prompt": "prompt",
+                "prediction": "##final score: 3",
+                "reasoning": None,
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--color", "always"])
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "\033[" not in stdout
+
+
 def test_version_flag_prints_version_and_exits(capsys: Any) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["--version"])
