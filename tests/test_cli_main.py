@@ -25,6 +25,13 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+def test_quiet_flag_suppresses_stderr(capsys: Any) -> None:
+    exit_code = main(["--quiet", "doctor", "--output", "json"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().err == ""
+
+
 def test_no_color_env_suppresses_ansi_codes(
     tmp_path: Path, monkeypatch: Any, capsys: Any
 ) -> None:

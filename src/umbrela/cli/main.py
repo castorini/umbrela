@@ -348,6 +348,13 @@ def build_parser() -> CLIArgumentParser:
         action="version",
         version=f"%(prog)s {importlib.metadata.version('umbrela')}",
     )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        default=False,
+        help="Suppress all log output (sets log level to CRITICAL).",
+    )
     subparsers = parser.add_subparsers(
         dest="command", required=True, parser_class=CLIArgumentParser
     )
@@ -878,7 +885,7 @@ def _format_text_judgments(
 
 
 def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
-    setup_logging(getattr(args, "log_level", 0))
+    setup_logging(getattr(args, "log_level", 0), quiet=getattr(args, "quiet", False))
     if args.execution_mode == "async" and args.backend != "gpt":
         raise CLIError(
             "--execution-mode async is currently supported only for --backend gpt",
@@ -998,7 +1005,7 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
 
 
 def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
-    setup_logging(getattr(args, "log_level", 0))
+    setup_logging(getattr(args, "log_level", 0), quiet=getattr(args, "quiet", False))
     if args.backend != "ensemble" and not args.model:
         raise CLIError(
             "evaluate requires --model unless --backend ensemble is used",
