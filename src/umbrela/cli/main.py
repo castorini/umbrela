@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 import sys
 from pathlib import Path
@@ -341,6 +342,11 @@ def build_parser() -> CLIArgumentParser:
             "  umbrela prompt show --prompt-type bing --few-shot-count 0\n"
             "  umbrela doctor --output json"
         ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {importlib.metadata.version('umbrela')}",
     )
     subparsers = parser.add_subparsers(
         dest="command", required=True, parser_class=CLIArgumentParser
@@ -1169,7 +1175,9 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
     query = str(cast(dict[str, Any], normalized["query"])["text"])
     passage = str(candidates[args.candidate_index]["doc"]["segment"])
     if args.examples_file is not None:
-        _ensure_file_exists(args.examples_file, command="prompt", field_name="examples_file")
+        _ensure_file_exists(
+            args.examples_file, command="prompt", field_name="examples_file"
+        )
         examples = Path(args.examples_file).read_text(encoding="utf-8")
     elif args.examples_text is not None:
         examples = args.examples_text
@@ -1183,7 +1191,9 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
                 command="prompt",
             )
         try:
-            examples = qrel_utils.generate_examples_prompt(args.qrel, args.few_shot_count)
+            examples = qrel_utils.generate_examples_prompt(
+                args.qrel, args.few_shot_count
+            )
         except Exception as error:  # noqa: BLE001
             raise CLIError(
                 f"Unable to generate prompt examples: {error}",

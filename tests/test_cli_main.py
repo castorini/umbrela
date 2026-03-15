@@ -25,6 +25,15 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+def test_version_flag_prints_version_and_exits(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+
+    assert exc_info.value.code == 0
+    stdout = capsys.readouterr().out
+    assert "umbrela" in stdout
+
+
 def test_direct_judge_via_input_json(monkeypatch: Any, capsys: Any) -> None:
     def fake_run_judge_direct(
         request_dict: dict[str, Any], args: Any
@@ -764,7 +773,10 @@ def test_missing_command_returns_descriptive_text_error(capsys: Any) -> None:
     assert exit_code == 2
     captured = capsys.readouterr()
     assert "No command provided." in captured.err
-    assert "judge, evaluate, view, prompt, describe, schema, doctor, validate" in captured.err
+    assert (
+        "judge, evaluate, view, prompt, describe, schema, doctor, validate"
+        in captured.err
+    )
     assert "Run `umbrela --help` for full usage." in captured.err
 
 
