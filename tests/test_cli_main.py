@@ -1382,3 +1382,44 @@ def test_async_mode_rejected_for_non_gpt(capsys: Any) -> None:
     assert exit_code == 5
     output = json.loads(capsys.readouterr().out)
     assert output["errors"][0]["code"] == "unsupported_execution_mode"
+
+
+def test_pipe_judge_jsonl_output_is_valid_jsonl(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    envelope = json.loads(stdout)
+    assert envelope["schema_version"] == "castorini.cli.v1"
+    assert all(isinstance(record, dict) for record in envelope["artifacts"][0]["data"])
