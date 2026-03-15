@@ -25,13 +25,16 @@ class PromptTemplate:
     prefix_user: str
     source_path: str
 
-    def validate_required_placeholders(self, required: frozenset[str]) -> None:
-        placeholders = {
+    @property
+    def placeholders(self) -> tuple[str, ...]:
+        return tuple(
             field_name
             for _, field_name, _, _ in Formatter().parse(self.prefix_user)
             if field_name is not None
-        }
-        missing = required - placeholders
+        )
+
+    def validate_required_placeholders(self, required: frozenset[str]) -> None:
+        missing = required - set(self.placeholders)
         if missing:
             missing_display = ", ".join(f"`{{{name}}}`" for name in sorted(missing))
             raise ValueError(
@@ -44,6 +47,21 @@ class PromptTemplate:
             query=query,
             passage=passage,
         )
+
+    def raw_parts(self) -> dict[str, str]:
+        return {
+            "system_message": self.system_message,
+            "prefix_user": self.prefix_user,
+        }
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "method": self.method,
+            "source_path": self.source_path,
+            "system_message": self.system_message,
+            "prefix_user": self.prefix_user,
+            "placeholders": list(self.placeholders),
+        }
 
 
 def _normalize_template_data(data: Any, source_path: Path) -> PromptTemplate:

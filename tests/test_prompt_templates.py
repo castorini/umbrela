@@ -245,3 +245,63 @@ class PromptTemplateTests(unittest.TestCase):
             ),
             "sample examples\nQuery: sample query\nPassage: sample passage\n",
         )
+
+    def test_template_metadata_reports_source_parts_and_placeholders(self) -> None:
+        template = get_prompt_template(
+            prompt_file=None,
+            prompt_type="basic",
+            few_shot_count=2,
+        )
+
+        self.assertEqual(template.method, "qrel_fewshot_basic")
+        self.assertIn("prompt_templates/qrel_fewshot_basic.yaml", template.source_path)
+        self.assertEqual(
+            template.placeholders,
+            ("examples", "query", "passage"),
+        )
+        self.assertEqual(
+            template.raw_parts(),
+            {
+                "system_message": "",
+                "prefix_user": EXPECTED_FEWSHOT_BASIC,
+            },
+        )
+        self.assertEqual(
+            template.metadata(),
+            {
+                "method": "qrel_fewshot_basic",
+                "source_path": template.source_path,
+                "system_message": "",
+                "prefix_user": EXPECTED_FEWSHOT_BASIC,
+                "placeholders": ["examples", "query", "passage"],
+            },
+        )
+
+    def test_custom_template_metadata_reports_custom_source_and_parts(self) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as handle:
+            handle.write(
+                'method: "custom"\n'
+                'system_message: "system text"\n'
+                'prefix_user: "Examples: {examples}\\nQuery: {query}\\nPassage: {passage}"\n'
+            )
+            template_path = handle.name
+
+        self.addCleanup(lambda: os.unlink(template_path))
+
+        template = get_prompt_template(
+            prompt_file=template_path,
+            prompt_type=None,
+            few_shot_count=0,
+        )
+
+        self.assertEqual(template.placeholders, ("examples", "query", "passage"))
+        self.assertEqual(
+            template.metadata(),
+            {
+                "method": "custom",
+                "source_path": template.source_path,
+                "system_message": "system text",
+                "prefix_user": "Examples: {examples}\nQuery: {query}\nPassage: {passage}",
+                "placeholders": ["examples", "query", "passage"],
+            },
+        )
