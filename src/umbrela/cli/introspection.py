@@ -70,6 +70,16 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "supported_types": ["judge-output"],
         "inspection_safe": True,
     },
+    "prompt": {
+        "summary": "Inspect built-in or custom Umbrela prompt templates.",
+        "examples": [
+            "umbrela prompt list",
+            "umbrela prompt show --prompt-type bing --few-shot-count 0",
+            "umbrela prompt show --prompt-file custom.yaml --output json",
+        ],
+        "inspection_safe": True,
+        "subcommands": ["list", "show"],
+    },
     "describe": {
         "summary": "Inspect structured metadata for a public Umbrela command.",
         "inspection_safe": True,
@@ -180,6 +190,23 @@ SCHEMAS: dict[str, dict[str, Any]] = {
     "view-summary": {
         "type": "object",
         "required": ["path", "artifact_type", "summary", "sampled_records"],
+    },
+    "prompt-catalog": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "required": [
+                "selector",
+                "few_shot_mode",
+                "source_path",
+                "method",
+                "placeholders",
+            ],
+        },
+    },
+    "prompt-template": {
+        "type": "object",
+        "required": ["selector", "template"],
     },
     "doctor-output": {
         "type": "object",

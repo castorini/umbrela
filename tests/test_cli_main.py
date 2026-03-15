@@ -764,7 +764,7 @@ def test_missing_command_returns_descriptive_text_error(capsys: Any) -> None:
     assert exit_code == 2
     captured = capsys.readouterr()
     assert "No command provided." in captured.err
-    assert "judge, evaluate, view, describe, schema, doctor, validate" in captured.err
+    assert "judge, evaluate, view, prompt, describe, schema, doctor, validate" in captured.err
     assert "Run `umbrela --help` for full usage." in captured.err
 
 
@@ -785,6 +785,77 @@ def test_schema_judge_direct_input_returns_json_envelope(capsys: Any) -> None:
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "schema"
     assert "query" in output["artifacts"][0]["data"]["properties"]
+
+
+def test_prompt_list_returns_json_catalog(capsys: Any) -> None:
+    exit_code = main(["prompt", "list", "--output", "json"])
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    assert output["artifacts"][0]["name"] == "prompt-catalog"
+    catalog = output["artifacts"][0]["data"]
+    assert len(catalog) == 4
+    assert catalog[0]["selector"]["prompt_type"] in {"basic", "bing"}
+
+
+def test_prompt_show_builtin_returns_text_template(capsys: Any) -> None:
+    exit_code = main(
+        [
+            "prompt",
+            "show",
+            "--prompt-type",
+            "bing",
+            "--few-shot-count",
+            "0",
+        ]
+    )
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "Umbrela Prompt Template" in stdout
+    assert "prompt_type: bing" in stdout
+    assert "few_shot_count: 0" in stdout
+    assert "[user]" in stdout
+    assert "Query: {query}" in stdout
+
+
+def test_prompt_show_custom_returns_json_template(tmp_path: Path, capsys: Any) -> None:
+    prompt_path = tmp_path / "custom_prompt.yaml"
+    prompt_path.write_text(
+        'method: "custom"\n'
+        'system_message: "custom system"\n'
+        'prefix_user: "Examples: {examples}\\nQuery: {query}\\nPassage: {passage}"\n',
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "prompt",
+            "show",
+            "--prompt-file",
+            str(prompt_path),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "prompt"
+    template = output["artifacts"][0]["data"]["template"]
+    assert template["method"] == "custom"
+    assert template["system_message"] == "custom system"
+    assert template["placeholders"] == ["examples", "query", "passage"]
+
+
+def test_prompt_show_requires_template_selector(capsys: Any) -> None:
+    exit_code = main(["prompt", "show", "--output", "json"])
+
+    assert exit_code == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["command"] == "unknown"
+    assert output["errors"][0]["code"] == "invalid_arguments"
 
 
 def test_doctor_returns_json_envelope(capsys: Any) -> None:

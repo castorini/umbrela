@@ -18,6 +18,13 @@ from .io import read_jsonl, write_jsonl
 from .logging_utils import setup_logging
 from .normalize import normalize_direct_judge_input
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
+from .prompt_view import (
+    build_prompt_template_view,
+    list_prompt_templates,
+    render_prompt_catalog_text,
+    render_prompt_template_text,
+    resolve_prompt_template,
+)
 from .responses import CommandResponse
 from umbrela.utils import qrel_utils
 from .view import (
@@ -36,6 +43,7 @@ KNOWN_COMMANDS = (
     "judge",
     "evaluate",
     "view",
+    "prompt",
     "describe",
     "schema",
     "doctor",
@@ -328,6 +336,7 @@ def build_parser() -> CLIArgumentParser:
             '--input-json \'{"query":"q","candidates":["p"]}\' --output json\n'
             "  umbrela evaluate --backend gpt --model gpt-4o "
             "--qrel dl19-passage --result-file run.trec --output json\n"
+            "  umbrela prompt show --prompt-type bing --few-shot-count 0\n"
             "  umbrela doctor --output json"
         ),
     )
@@ -685,6 +694,52 @@ def build_parser() -> CLIArgumentParser:
         help="Human-readable summary or JSON envelope.",
     )
 
+    prompt_parser = subparsers.add_parser(
+        "prompt",
+        help="Inspect built-in or custom prompt templates.",
+        description="Inspect built-in or custom prompt templates.",
+    )
+    prompt_subparsers = prompt_parser.add_subparsers(
+        dest="prompt_command", required=True, parser_class=CLIArgumentParser
+    )
+
+    prompt_list_parser = prompt_subparsers.add_parser(
+        "list",
+        help="List built-in prompt templates.",
+    )
+    prompt_list_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable catalog or JSON envelope.",
+    )
+
+    prompt_show_parser = prompt_subparsers.add_parser(
+        "show",
+        help="Show a built-in or custom prompt template.",
+    )
+    prompt_show_source = prompt_show_parser.add_mutually_exclusive_group(required=True)
+    prompt_show_source.add_argument(
+        "--prompt-file", type=str, help="Custom YAML prompt template to inspect."
+    )
+    prompt_show_source.add_argument(
+        "--prompt-type",
+        choices=["basic", "bing"],
+        help="Built-in prompt template family to inspect.",
+    )
+    prompt_show_parser.add_argument(
+        "--few-shot-count",
+        type=int,
+        default=0,
+        help="Few-shot count used to resolve the built-in prompt template.",
+    )
+    prompt_show_parser.add_argument(
+        "--output",
+        choices=["text", "json"],
+        default="text",
+        help="Human-readable template or JSON envelope.",
+    )
+
     validate_parser = subparsers.add_parser(
         "validate",
         help=(
@@ -988,6 +1043,40 @@ def _run_view_command(args: argparse.Namespace) -> CommandResponse:
     )
 
 
+def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
+    if args.prompt_command == "list":
+        catalog = list_prompt_templates()
+        return CommandResponse(
+            command="prompt",
+            mode="inspect",
+            resolved={"prompt_command": "list"},
+            artifacts=[make_data_artifact("prompt-catalog", catalog)],
+        )
+
+    template = resolve_prompt_template(
+        prompt_file=args.prompt_file,
+        prompt_type=args.prompt_type,
+        few_shot_count=args.few_shot_count,
+    )
+    view = build_prompt_template_view(
+        template,
+        prompt_file=args.prompt_file,
+        prompt_type=args.prompt_type,
+        few_shot_count=args.few_shot_count,
+    )
+    return CommandResponse(
+        command="prompt",
+        mode="inspect",
+        resolved={
+            "prompt_command": "show",
+            "prompt_file": view["selector"]["prompt_file"],
+            "prompt_type": view["selector"]["prompt_type"],
+            "few_shot_count": view["selector"]["few_shot_count"],
+        },
+        artifacts=[make_data_artifact("prompt-template", view)],
+    )
+
+
 def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
     response = CommandResponse(command="validate", mode="validate")
     if args.target == "judge":
@@ -1058,6 +1147,8 @@ def _run_command(args: argparse.Namespace) -> CommandResponse:
         return _run_evaluate_command(args)
     if args.command == "view":
         return _run_view_command(args)
+    if args.command == "prompt":
+        return _run_prompt_command(args)
     if args.command == "describe":
         return _run_describe_command(args)
     if args.command == "schema":
@@ -1129,6 +1220,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             + "\n"
         )
+    elif args.command == "prompt":
+        if args.prompt_command == "list":
+            sys.stdout.write(
+                render_prompt_catalog_text(
+                    cast(list[dict[str, Any]], response.artifacts[0]["data"])
+                )
+                + "\n"
+            )
+        else:
+            sys.stdout.write(
+                render_prompt_template_text(
+                    cast(dict[str, Any], response.artifacts[0]["data"])
+                )
+                + "\n"
+            )
     elif args.command == "validate":
         sys.stdout.write(json.dumps(response.validation, indent=2) + "\n")
     else:
