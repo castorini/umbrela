@@ -117,6 +117,15 @@ def test_no_color_env_suppresses_ansi_codes(
     assert "\033[" not in stdout
 
 
+def test_print_completion_outputs_bash_script(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--print-completion", "bash"])
+
+    assert exc_info.value.code == 0
+    stdout = capsys.readouterr().out
+    assert "complete" in stdout.lower() or "_umbrela" in stdout
+
+
 def test_version_flag_prints_version_and_exits(capsys: Any) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["--version"])

@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any, NoReturn, Sequence, cast
 
+import shtab
+
 from .adapters import make_data_artifact, make_file_artifact
 from .introspection import (
     COMMAND_DESCRIPTIONS,
@@ -355,6 +357,7 @@ def build_parser() -> CLIArgumentParser:
         default=False,
         help="Suppress all log output (sets log level to CRITICAL).",
     )
+    shtab.add_argument_to(parser, ["--print-completion"])
     subparsers = parser.add_subparsers(
         dest="command", required=True, parser_class=CLIArgumentParser
     )
