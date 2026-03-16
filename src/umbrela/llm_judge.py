@@ -2,11 +2,8 @@ from abc import ABC, abstractmethod
 import asyncio
 import os
 import statistics
-from collections.abc import Sequence
 from typing import Any, cast
 
-import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay, cohen_kappa_score, confusion_matrix
 from umbrela.prompts import (
     PromptTemplate,
     display_prompt_template,
@@ -118,37 +115,6 @@ class LLMJudge(ABC):
         )
         return self.prepare_judgments(outputs)
 
-    def calculate_kappa(
-        self, gts: Sequence[int | str], preds: Sequence[int | str]
-    ) -> None:
-        print(f"Kohen kappa overall: {cohen_kappa_score(gts, preds)}")
-        print("-" * 79)
-        gts_bin = [1 if int(x) > 1 else 0 for x in gts]
-        preds_bin = [1 if int(x) > 1 else 0 for x in preds]
-        print(f"Binarized Kohen kappa overall: {cohen_kappa_score(gts_bin, preds_bin)}")
-        print("-" * 79)
-
-    def draw_confusion_matrix(
-        self, gts: Sequence[int | str], preds: Sequence[int | str]
-    ) -> None:
-        conf_mat = confusion_matrix(gts, preds)
-        print(conf_mat)
-
-        os.makedirs("conf_matrix", exist_ok=True)
-        disp = ConfusionMatrixDisplay(confusion_matrix=conf_mat)
-        fig, ax = plt.subplots()
-        disp.plot(ax=ax, cmap="GnBu")
-        for text in disp.text_.ravel():
-            text.set_fontsize(16)
-        ax.set_title(self.qrel, fontsize=14)
-        ax.set_xlabel("Predicted label", fontsize=14)
-        ax.set_ylabel("True label", fontsize=14)
-        plt.savefig(
-            "conf_matrix/"
-            f"{common_utils.artifact_label(self.qrel)}-"
-            f"{os.path.basename(self.model_name)}.png"
-        )
-
     def evalute_results_with_qrel(
         self,
         result_file: str | None,
@@ -239,7 +205,7 @@ class LLMJudge(ABC):
 
             common_utils.write_modified_qrel(qrel_data, modified_qrel)
             print("For valid results:")
-            self.calculate_kappa(gts_valid, preds_valid)
+            common_utils.calculate_kappa(gts_valid, preds_valid)
             for cat in valid_res:
                 print(
                     "Stats for "
@@ -248,8 +214,8 @@ class LLMJudge(ABC):
                 )
 
         print("For overall results:")
-        self.calculate_kappa(gts, preds)
-        self.draw_confusion_matrix(gts, preds)
+        common_utils.calculate_kappa(gts, preds)
+        common_utils.draw_confusion_matrix(gts, preds, self.qrel, self.model_name)
 
         for cat in unmatch_dict:
             print(
