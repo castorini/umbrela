@@ -1,4 +1,4 @@
-"""YAML-backed prompt loading and rendering for Umbrela."""
+"""YAML-backed prompt loading and rendering for umbrela."""
 
 from __future__ import annotations
 

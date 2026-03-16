@@ -61,7 +61,7 @@ def build_prompt_template_view(
 
 
 def render_prompt_catalog_text(catalog: list[dict[str, Any]]) -> str:
-    lines = ["Umbrela Prompt Catalog"]
+    lines = ["umbrela Prompt Catalog"]
     for entry in catalog:
         selector = entry["selector"]
         lines.append("")
@@ -79,7 +79,7 @@ def render_prompt_catalog_text(catalog: list[dict[str, Any]]) -> str:
 def render_prompt_template_text(view: dict[str, Any]) -> str:
     selector = view["selector"]
     template = view["template"]
-    lines = ["Umbrela Prompt Template"]
+    lines = ["umbrela Prompt Template"]
     lines.append(f"method: {template['method']}")
     lines.append(f"source: {template['source_path']}")
     if selector["prompt_file"] is not None:
@@ -145,7 +145,7 @@ def render_rendered_prompt_text(view: dict[str, Any], *, part: str) -> str:
     selector = view["selector"]
     messages = view["messages"]
     inputs = view["inputs"]
-    lines = ["Umbrela Rendered Prompt"]
+    lines = ["umbrela Rendered Prompt"]
     if selector["prompt_file"] is not None:
         lines.append(f"prompt_file: {selector['prompt_file']}")
     else:

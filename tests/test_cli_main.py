@@ -814,7 +814,7 @@ def test_view_judgments_text_hides_prompts_by_default(
 
     assert exit_code == 0
     stdout = capsys.readouterr().out
-    assert "Umbrela View" in stdout
+    assert "umbrela View" in stdout
     assert "scores: 0=0, 1=0, 2=0, 3=1" in stdout
     assert "prompt:" not in stdout
 
@@ -926,7 +926,7 @@ def test_prompt_show_builtin_returns_text_template(capsys: Any) -> None:
 
     assert exit_code == 0
     stdout = capsys.readouterr().out
-    assert "Umbrela Prompt Template" in stdout
+    assert "umbrela Prompt Template" in stdout
     assert "prompt_type: bing" in stdout
     assert "few_shot_count: 0" in stdout
     assert "[user]" in stdout
@@ -989,7 +989,7 @@ def test_prompt_render_builtin_returns_text_prompt(capsys: Any) -> None:
 
     assert exit_code == 0
     stdout = capsys.readouterr().out
-    assert "Umbrela Rendered Prompt" in stdout
+    assert "umbrela Rendered Prompt" in stdout
     assert "prompt_type: basic" in stdout
     assert "candidate_index: 1" in stdout
     assert "passage: p1" in stdout
@@ -1238,7 +1238,7 @@ def test_top_level_help_includes_command_summaries(capsys: Any) -> None:
 
     assert exc_info.value.code == 0
     stdout = capsys.readouterr().out
-    assert "Umbrela packaged CLI" in stdout
+    assert "umbrela packaged CLI" in stdout
     assert "run a single judge backend" in stdout.lower()
     assert "inspect an existing umbrela artifact" in stdout.lower()
 

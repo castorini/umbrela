@@ -27,7 +27,7 @@ def _require_pyserini(feature: str, needs_java: bool = False) -> None:
     if get_qrels_file is None or get_topics is None:
         message = (
             f"{feature} requires the optional `pyserini` dependency."
-            " Install Umbrela with `pyserini` support to use qrel-backed workflows."
+            " Install umbrela with `pyserini` support to use qrel-backed workflows."
         )
         if needs_java:
             message += " Java 21 is also required for Lucene-backed passage access."

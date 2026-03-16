@@ -335,7 +335,7 @@ def build_parser() -> CLIArgumentParser:
     parser = CLIArgumentParser(
         prog="umbrela",
         description=(
-            "Umbrela packaged CLI for direct judging, qrel-backed evaluation, "
+            "umbrela packaged CLI for direct judging, qrel-backed evaluation, "
             "validation, and artifact inspection."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -637,7 +637,7 @@ def build_parser() -> CLIArgumentParser:
 
     describe_parser = subparsers.add_parser(
         "describe",
-        help="Inspect structured metadata for a public Umbrela command.",
+        help="Inspect structured metadata for a public umbrela command.",
     )
     describe_parser.add_argument(
         "target",
@@ -653,7 +653,7 @@ def build_parser() -> CLIArgumentParser:
 
     schema_parser = subparsers.add_parser(
         "schema",
-        help="Print JSON schemas for supported Umbrela inputs, outputs, and envelopes.",
+        help="Print JSON schemas for supported umbrela inputs, outputs, and envelopes.",
     )
     schema_parser.add_argument(
         "target", choices=sorted(SCHEMAS), help="Schema artifact to print."
@@ -669,7 +669,7 @@ def build_parser() -> CLIArgumentParser:
         "doctor",
         help=(
             "Report environment, dependency, and backend readiness for the "
-            "packaged Umbrela CLI."
+            "packaged umbrela CLI."
         ),
     )
     doctor_parser.add_argument(
@@ -681,9 +681,9 @@ def build_parser() -> CLIArgumentParser:
 
     view_parser = subparsers.add_parser(
         "view",
-        help="Inspect an existing Umbrela artifact.",
+        help="Inspect an existing umbrela artifact.",
         description=(
-            "Inspect an existing Umbrela judgment artifact and render a stable summary."
+            "Inspect an existing umbrela judgment artifact and render a stable summary."
         ),
     )
     view_parser.add_argument("path", type=str, help="Artifact path to inspect.")

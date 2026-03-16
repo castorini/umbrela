@@ -12,7 +12,7 @@ from umbrela.utils import qrel_utils
 COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
     "judge": {
         "summary": (
-            "Run a single Umbrela backend over direct JSON input "
+            "Run a single umbrela backend over direct JSON input "
             "or batch JSONL requests."
         ),
         "execution_mode_default": "sync",
@@ -62,7 +62,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         ],
     },
     "view": {
-        "summary": "Inspect Umbrela artifact files with a human-readable preview.",
+        "summary": "Inspect umbrela artifact files with a human-readable preview.",
         "examples": [
             "umbrela view judgments.jsonl",
             "umbrela view judgments.jsonl --records 1 --show-prompts",
@@ -71,7 +71,7 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "inspection_safe": True,
     },
     "prompt": {
-        "summary": "Inspect built-in or custom Umbrela prompt templates.",
+        "summary": "Inspect built-in or custom umbrela prompt templates.",
         "examples": [
             "umbrela prompt list",
             "umbrela prompt show --prompt-type bing --few-shot-count 0",
@@ -83,19 +83,19 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "subcommands": ["list", "show", "render"],
     },
     "describe": {
-        "summary": "Inspect structured metadata for a public Umbrela command.",
+        "summary": "Inspect structured metadata for a public umbrela command.",
         "inspection_safe": True,
     },
     "schema": {
         "summary": (
-            "Print JSON schemas for supported Umbrela inputs, outputs, and envelopes."
+            "Print JSON schemas for supported umbrela inputs, outputs, and envelopes."
         ),
         "inspection_safe": True,
     },
     "doctor": {
         "summary": (
             "Report environment, dependency, and backend readiness for "
-            "the packaged Umbrela CLI."
+            "the packaged umbrela CLI."
         ),
         "inspection_safe": True,
     },

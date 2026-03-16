@@ -1,4 +1,4 @@
-"""Prompt template helpers for Umbrela."""
+"""Prompt template helpers for umbrela."""
 
 from .template_loader import (
     PromptTemplate,

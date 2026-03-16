@@ -22,7 +22,7 @@ class UmbrelaLiveOpenAISmokeTests(unittest.TestCase):
         if judgments:
             model_name = judgments[0].get("model")
         lines = [
-            "Umbrela live smoke result",
+            "umbrela live smoke result",
             f"model: {model_name or 'unknown'}",
         ]
         for index, judgment in enumerate(judgments, start=1):

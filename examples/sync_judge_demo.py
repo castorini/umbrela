@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronous compatibility example for Umbrela judges."""
+"""Synchronous compatibility example for umbrela judges."""
 
 import argparse
 from typing import Any
@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 
 def create_sample_request() -> dict:
-    """Create a small in-memory request that matches Umbrela's judge API."""
+    """Create a small in-memory request that matches umbrela's judge API."""
     return {
         "query": {"text": "how long is life cycle of flea", "qid": "264014"},
         "candidates": [
@@ -169,7 +169,7 @@ def print_results(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the synchronous Umbrela judge demo."
+        description="Run the synchronous umbrela judge demo."
     )
     parser.add_argument(
         "--judge",
@@ -285,7 +285,7 @@ def main() -> None:
     request = create_sample_request()
 
     print(
-        f"Running Umbrela sync judge demo with judge={args.judge} "
+        f"Running umbrela sync judge demo with judge={args.judge} "
         f"model={args.model} prompt_type={args.prompt_type} "
         f"few_shot_count={args.few_shot_count}"
     )

@@ -1,1 +1,1 @@
-"""Internal CLI support package for Umbrela."""
+"""Internal CLI support package for umbrela."""

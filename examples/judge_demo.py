@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Async-first GPT judge demo for Umbrela."""
+"""Async-first GPT judge demo for umbrela."""
 
 import argparse
 import asyncio
@@ -11,7 +11,7 @@ from umbrela.gpt_judge import GPTJudge
 
 
 def create_sample_request() -> dict:
-    """Create a small in-memory request that matches Umbrela's judge API."""
+    """Create a small in-memory request that matches umbrela's judge API."""
     return {
         "query": {"text": "how long is life cycle of flea", "qid": "264014"},
         "candidates": [
@@ -115,7 +115,7 @@ def print_results(
 
 async def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run the default async GPT judge demo for Umbrela."
+        description="Run the default async GPT judge demo for umbrela."
     )
     parser.add_argument(
         "--model",
@@ -214,7 +214,7 @@ async def main() -> None:
         )
 
     print(
-        f"Running Umbrela async judge demo with model={args.model} "
+        f"Running umbrela async judge demo with model={args.model} "
         f"prompt_type={args.prompt_type} few_shot_count={args.few_shot_count} "
         f"max_concurrency={args.max_concurrency}"
     )

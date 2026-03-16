@@ -27,7 +27,7 @@ JUDGE_REQUIRED_KEYS = {
 
 
 class ViewError(ValueError):
-    """Raised when a file cannot be viewed as a supported Umbrela artifact."""
+    """Raised when a file cannot be viewed as a supported umbrela artifact."""
 
 
 def _color_enabled(color: str) -> bool:
@@ -93,7 +93,7 @@ def detect_artifact_type(
     first_record = records[0]
     if JUDGE_REQUIRED_KEYS.issubset(first_record.keys()):
         return "judge-output"
-    raise ViewError("could not detect Umbrela artifact type; use --type judge-output")
+    raise ViewError("could not detect umbrela artifact type; use --type judge-output")
 
 
 def summarize_judgments(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -151,7 +151,7 @@ def build_view_summary(
 def render_view_summary(view: dict[str, Any], *, color: str) -> str:
     enabled = _color_enabled(color)
     lines = [
-        _style("Umbrela View", "bold", enabled),
+        _style("umbrela View", "bold", enabled),
         f"path: {view['path']}",
         f"type: {view['artifact_type']}",
         f"records: {view['summary']['record_count']}",
