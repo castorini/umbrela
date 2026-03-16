@@ -283,9 +283,9 @@ class GPTJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]:
-        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
+        _, prompts = self.prepare_request_inputs(request_dict, preprocess)
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
         async def run_prompt(prompt: str) -> tuple[str, str | None]:
@@ -300,29 +300,29 @@ class GPTJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
         return common_utils.run_async_blocking(
-            self.async_judge(request_dict, max_new_tokens, prepocess)
+            self.async_judge(request_dict, max_new_tokens, preprocess)
         )
 
     def predict_with_llm(
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]:
         return common_utils.run_async_blocking(
-            self.async_predict_with_llm(request_dict, max_new_tokens, prepocess)
+            self.async_predict_with_llm(request_dict, max_new_tokens, preprocess)
         )
 
     async def async_judge(
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
         outputs = await self.async_predict_with_llm(
-            request_dict, max_new_tokens, prepocess
+            request_dict, max_new_tokens, preprocess
         )
         return self.prepare_judgments(outputs)

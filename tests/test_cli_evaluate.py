@@ -33,7 +33,7 @@ class ScriptedJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]:
         raise AssertionError("ScriptedJudge.predict_with_llm should not be called")
 
@@ -41,10 +41,10 @@ class ScriptedJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
         del max_new_tokens
-        query_passage, prompts = self.prepare_request_inputs(request_dict, prepocess)
+        query_passage, prompts = self.prepare_request_inputs(request_dict, preprocess)
         judgments: list[common_utils.Judgment] = []
         for (query, passage), prompt, output in zip(
             query_passage,
@@ -82,7 +82,7 @@ class NoJudgeReuse(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]:
         raise AssertionError("cached evaluation should not call predict_with_llm")
 
@@ -90,7 +90,7 @@ class NoJudgeReuse(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
         raise AssertionError("cached evaluation should not call judge")
 

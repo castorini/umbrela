@@ -56,11 +56,11 @@ class LLMJudge(ABC):
         display_prompt_template(self.prompt_template)
 
     def prepare_request_inputs(
-        self, request_dict: dict[str, Any] | common_utils.QueryPassage, prepocess: bool
+        self, request_dict: dict[str, Any] | common_utils.QueryPassage, preprocess: bool
     ) -> tuple[common_utils.QueryPassage, list[str]]:
         query_passage = common_utils.prepare_request_inputs(
             request_dict,
-            prepocess,
+            preprocess,
         )
         prompts = render_prompts(
             self.prompt_template, query_passage, self.prompt_examples
@@ -83,17 +83,17 @@ class LLMJudge(ABC):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]: ...
 
     async def async_predict_with_llm(
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
     ) -> list[str]:
         return await asyncio.to_thread(
-            self.predict_with_llm, request_dict, max_new_tokens, prepocess
+            self.predict_with_llm, request_dict, max_new_tokens, preprocess
         )
 
     @abstractmethod
@@ -101,17 +101,17 @@ class LLMJudge(ABC):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]: ...
 
     async def async_judge(
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
         outputs = await self.async_predict_with_llm(
-            request_dict, max_new_tokens, prepocess
+            request_dict, max_new_tokens, preprocess
         )
         return self.prepare_judgments(outputs)
 
@@ -174,7 +174,7 @@ class LLMJudge(ABC):
                 ]
             gts = list(generated_gts)
 
-            judgments = self.judge(holes_qp, prepocess=False, max_new_tokens=200)
+            judgments = self.judge(holes_qp, preprocess=False, max_new_tokens=200)
 
             valid_res: dict[int | str, list[int]] = {}
             preds = []

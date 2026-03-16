@@ -89,7 +89,11 @@ def render_prompt_template_text(view: dict[str, Any]) -> str:
         lines.append(f"few_shot_count: {selector['few_shot_count']}")
     lines.append(
         "placeholders: "
-        + (", ".join(template["placeholders"]) if template["placeholders"] else "(none)")
+        + (
+            ", ".join(template["placeholders"])
+            if template["placeholders"]
+            else "(none)"
+        )
     )
     lines.append("")
     lines.append("[system]")

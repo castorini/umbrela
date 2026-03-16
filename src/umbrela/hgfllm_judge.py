@@ -35,14 +35,14 @@ class HGFLLMJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
         do_sample: bool = True,
         top_p: float = 1.0,
         num_beams: int = 1,
         batch_size: int = 1,
         num_workers: int = 16,
     ) -> list[str]:
-        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
+        _, prompts = self.prepare_request_inputs(request_dict, preprocess)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             device_map="auto",
@@ -112,7 +112,7 @@ class HGFLLMJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
-        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
+        outputs = self.predict_with_llm(request_dict, max_new_tokens, preprocess)
         return self.prepare_judgments(outputs)

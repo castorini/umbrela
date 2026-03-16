@@ -100,10 +100,10 @@ class GPTJudgeAsyncTests(unittest.TestCase):
         judge = self.make_judge()
 
         async def fake_async_predict_with_llm(
-            request_dict: dict[str, Any], max_new_tokens: int, prepocess: bool
+            request_dict: dict[str, Any], max_new_tokens: int, preprocess: bool
         ) -> list[str]:
             del max_new_tokens
-            judge.prepare_request_inputs(request_dict, prepocess)
+            judge.prepare_request_inputs(request_dict, preprocess)
             return ["0", "1", "2"]
 
         judge.async_predict_with_llm = fake_async_predict_with_llm  # type: ignore[assignment,method-assign]

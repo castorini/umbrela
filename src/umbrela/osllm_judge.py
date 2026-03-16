@@ -33,10 +33,10 @@ class OSLLMJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int,
-        prepocess: bool,
+        preprocess: bool,
         batch_size: int = 1,
     ) -> list[str]:
-        _, prompts = self.prepare_request_inputs(request_dict, prepocess)
+        _, prompts = self.prepare_request_inputs(request_dict, preprocess)
 
         self._llm, self._tokenizer = load_model(
             self.model_name, device=self._device, num_gpus=self.num_gpus
@@ -70,7 +70,7 @@ class OSLLMJudge(LLMJudge):
         self,
         request_dict: dict[str, Any] | common_utils.QueryPassage,
         max_new_tokens: int = 100,
-        prepocess: bool = True,
+        preprocess: bool = True,
     ) -> list[common_utils.Judgment]:
-        outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
+        outputs = self.predict_with_llm(request_dict, max_new_tokens, preprocess)
         return self.prepare_judgments(outputs)
