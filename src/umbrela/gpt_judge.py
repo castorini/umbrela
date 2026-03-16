@@ -1,9 +1,6 @@
-import argparse
 import asyncio
 import os
 from typing import Any
-
-from dotenv import load_dotenv
 
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
@@ -329,70 +326,3 @@ class GPTJudge(LLMJudge):
             request_dict, max_new_tokens, prepocess
         )
         return self.prepare_judgments(outputs)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--qrel", type=str, help="qrels file", required=True)
-    parser.add_argument("--result_file", type=str, help="retriever result file")
-    parser.add_argument("--prompt_file", type=str, help="custom YAML prompt file")
-    parser.add_argument(
-        "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
-    )
-    parser.add_argument("--model", type=str, help="model name")
-    parser.add_argument(
-        "--few_shot_count", type=int, help="Few shot count for each category."
-    )
-    parser.add_argument("--num_sample", type=int, default=1)
-    parser.add_argument("--regenerate", action="store_true")
-    parser.add_argument(
-        "--use_azure_openai",
-        action="store_true",
-        help="Use Azure OpenAI instead of the default public OpenAI API.",
-    )
-    parser.add_argument(
-        "--use_openrouter",
-        action="store_true",
-        help="Use OpenRouter instead of the default public OpenAI API.",
-    )
-    parser.add_argument(
-        "--max_concurrency",
-        type=int,
-        default=8,
-        help="Maximum number of concurrent OpenAI requests.",
-    )
-    parser.add_argument(
-        "--reasoning_effort",
-        type=str,
-        default=None,
-        choices=["low", "medium", "high"],
-        help=(
-            "Reasoning effort for OpenAI reasoning models such as gpt-5 "
-            "and o-series models."
-        ),
-    )
-
-    args = parser.parse_args()
-    load_dotenv()
-
-    judge = GPTJudge(
-        args.qrel,
-        args.model,
-        args.prompt_file,
-        args.prompt_type,
-        args.few_shot_count,
-        use_azure_openai=args.use_azure_openai,
-        use_openrouter=args.use_openrouter,
-        max_concurrency=args.max_concurrency,
-        reasoning_effort=args.reasoning_effort,
-    )
-    judge.evalute_results_with_qrel(
-        args.result_file,
-        regenerate=args.regenerate,
-        num_samples=args.num_sample,
-        judge_cat=JUDGE_CAT,
-    )
-
-
-if __name__ == "__main__":
-    main()

@@ -1,7 +1,5 @@
-import argparse
 from typing import Any
 
-from dotenv import load_dotenv
 from fastchat.model import load_model
 import torch
 from tqdm import tqdm
@@ -76,36 +74,3 @@ class OSLLMJudge(LLMJudge):
     ) -> list[common_utils.Judgment]:
         outputs = self.predict_with_llm(request_dict, max_new_tokens, prepocess)
         return self.prepare_judgments(outputs)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--qrel", type=str, help="qrels file", required=True)
-    parser.add_argument("--result_file", type=str, help="retriever result file")
-    parser.add_argument("--prompt_file", type=str, help="custom YAML prompt file")
-    parser.add_argument(
-        "--prompt_type", type=str, help="Prompt type. Supported types: [bing, basic]."
-    )
-    parser.add_argument("--model", type=str, help="model name")
-    parser.add_argument(
-        "--few_shot_count", type=int, help="Few shot count for each category."
-    )
-    parser.add_argument("--num_sample", type=int, default=1)
-    parser.add_argument("--regenerate", action="store_true")
-
-    args = parser.parse_args()
-    load_dotenv()
-
-    judge = OSLLMJudge(
-        args.qrel, args.model, args.prompt_file, args.prompt_type, args.few_shot_count
-    )
-    judge.evalute_results_with_qrel(
-        args.result_file,
-        regenerate=args.regenerate,
-        num_samples=args.num_sample,
-        judge_cat=JUDGE_CAT,
-    )
-
-
-if __name__ == "__main__":
-    main()
