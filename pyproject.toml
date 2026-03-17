@@ -143,3 +143,12 @@ ignore_missing_imports = true
 "src/eval/test.py" = ["E501"]
 "tests/test_prompt_templates.py" = ["E501"]
 "tests/test_backend_contracts.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "core: deterministic CLI, parsing, and envelope regression coverage",
+    "integration: deterministic offline backend contract regression coverage",
+    "live: provider-backed smoke coverage that requires explicit opt-in",
+]
+addopts = "--strict-markers"

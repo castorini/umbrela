@@ -2,7 +2,11 @@ import os
 import tempfile
 import unittest
 
+import pytest
+
 from umbrela.prompts import get_prompt_template, render_prompts
+
+pytestmark = pytest.mark.core
 
 
 EXPECTED_ZERO_BASIC = """You are an expert judge of a content. Using your internal knowledge and simple commonsense reasoning, try to verify if the passage is relevance category to the query.

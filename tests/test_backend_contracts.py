@@ -8,6 +8,8 @@ from typing import Any
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 SAMPLE_REQUEST = {
     "query": {"text": "how long is life cycle of flea", "qid": "264014"},

@@ -7,7 +7,11 @@ from contextlib import redirect_stdout
 from io import StringIO
 from textwrap import indent
 
+import pytest
+
 from umbrela.cli.main import main
+
+pytestmark = pytest.mark.live
 
 
 @unittest.skipUnless(

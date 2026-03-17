@@ -4,10 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from umbrela.cli import operations
 from umbrela.cli.main import main
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils, qrel_utils
+
+pytestmark = pytest.mark.core
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "evaluate"

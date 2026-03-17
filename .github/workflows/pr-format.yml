@@ -10,11 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev
       - name: Run pre-commit
@@ -24,46 +23,36 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Run core tests
-        run: |
-          uv run pytest -q \
-            tests/test_cli_main.py \
-            tests/test_cli_evaluate.py \
-            tests/test_cli_support.py \
-            tests/test_evaluation_utils.py \
-            tests/test_gpt_judge_async.py \
-            tests/test_prompt_templates.py
+        run: uv run pytest -q -m core tests
   tests-integration:
     runs-on: ubuntu-latest
     needs: tests-core
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --group dev --extra cloud
       - name: Run offline backend contract regressions
-        run: uv run pytest -q tests/test_backend_contracts.py
+        run: uv run pytest -q -m integration tests
   smoke-cloud:
     runs-on: ubuntu-latest
     needs: tests-integration
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Smoke import cloud backends
@@ -78,11 +67,10 @@ jobs:
     needs: tests-integration
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev --extra hf
       - name: Smoke import HF backend
@@ -96,11 +84,10 @@ jobs:
     needs: tests-integration
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - name: Install uv
-        run: python -m pip install --upgrade pip uv
+          enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev --extra pyserini
       - name: Smoke import pyserini-backed utilities

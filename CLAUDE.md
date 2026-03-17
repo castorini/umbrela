@@ -75,11 +75,12 @@ few-shot.
 ## Testing
 
 - Test tiers:
-  - `core`: `uv sync --group dev --extra cloud && uv run pytest -q tests/test_cli_main.py tests/test_cli_evaluate.py tests/test_cli_support.py tests/test_evaluation_utils.py tests/test_gpt_judge_async.py tests/test_prompt_templates.py`
-  - `integration`: `uv run pytest -q tests/test_backend_contracts.py`
-  - `live`: opt-in smoke tests such as `UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'`
+  - `core`: `uv sync --group dev --extra cloud && uv run pytest -q -m core tests`
+  - `integration`: `uv sync --group dev --extra cloud && uv run pytest -q -m integration tests`
+  - `live`: opt-in smoke tests such as `UMBRELA_LIVE_OPENAI_SMOKE=1 uv run pytest -q tests/test_live_openai_smoke.py`
 - Keep `core` and `integration` coverage offline and deterministic.
 - Optional dependency stacks (`cloud`, `hf`, `pyserini`) should remain smoke-testable in CI without live provider calls.
+- Apply the shared pytest markers `core`, `integration`, and `live` at the module level when adding or moving tests.
 
 ## Architecture
 

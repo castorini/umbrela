@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
 from umbrela.cli.normalize import normalize_direct_judge_input
 from umbrela.cli.responses import CommandResponse
+
+pytestmark = pytest.mark.core
 
 
 def test_normalize_direct_judge_input_accepts_minimal_payload() -> None:

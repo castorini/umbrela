@@ -6,6 +6,8 @@ import pytest
 
 from umbrela.utils import common_utils, qrel_utils
 
+pytestmark = pytest.mark.core
+
 
 @pytest.mark.parametrize(
     ("response", "expected"),

@@ -6,8 +6,12 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from umbrela.gpt_judge import GPTJudge
 from umbrela.utils import common_utils
+
+pytestmark = pytest.mark.core
 
 
 SAMPLE_REQUEST = {

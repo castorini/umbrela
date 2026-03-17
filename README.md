@@ -243,7 +243,7 @@ For an opt-in live smoke test that exercises the packaged CLI against a real
 OpenAI-compatible backend, run:
 
 ```bash
-UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'
+UMBRELA_LIVE_OPENAI_SMOKE=1 uv run pytest -q tests/test_live_openai_smoke.py
 ```
 
 ### Testing tiers
@@ -258,15 +258,9 @@ Typical local commands:
 
 ```bash
 uv sync --group dev --extra cloud
-uv run pytest -q \
-  tests/test_cli_main.py \
-  tests/test_cli_evaluate.py \
-  tests/test_cli_support.py \
-  tests/test_evaluation_utils.py \
-  tests/test_gpt_judge_async.py \
-  tests/test_prompt_templates.py
-uv run pytest -q tests/test_backend_contracts.py
-UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'
+uv run pytest -q -m core tests
+uv run pytest -q -m integration tests
+UMBRELA_LIVE_OPENAI_SMOKE=1 uv run pytest -q tests/test_live_openai_smoke.py
 ```
 
 ### Programmatic usage

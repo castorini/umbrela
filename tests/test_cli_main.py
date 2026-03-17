@@ -9,6 +9,8 @@ import pytest
 import umbrela.cli.introspection as introspection
 from umbrela.cli.main import main
 
+pytestmark = pytest.mark.core
+
 
 def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     path.write_text(
