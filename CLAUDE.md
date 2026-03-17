@@ -27,6 +27,7 @@ Additional setup notes:
 - If you prefer not to activate the virtual environment, run commands through `uv run`.
 - Run `uv run pre-commit run --all-files` before committing local changes when you want to execute the full contributor quality gate manually.
 - Add a repo-local `.env` with only the variables needed for the backend you plan to run (see Environment Variables below).
+- Keep release-note updates in `docs/release-notes/` for user-visible changes.
 
 ## Environment Variables
 
@@ -71,6 +72,15 @@ Prompt types: `bing` (default, mirrors Bing BRELA prompt) or `basic`.
 Combined with `--few-shot-count`: 0 = zero-shot, values greater than 0 =
 few-shot.
 
+## Testing
+
+- Test tiers:
+  - `core`: `uv sync --group dev --extra cloud && uv run pytest -q tests/test_cli_main.py tests/test_cli_evaluate.py tests/test_cli_support.py tests/test_evaluation_utils.py tests/test_gpt_judge_async.py tests/test_prompt_templates.py`
+  - `integration`: `uv run pytest -q tests/test_backend_contracts.py`
+  - `live`: opt-in smoke tests such as `UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'`
+- Keep `core` and `integration` coverage offline and deterministic.
+- Optional dependency stacks (`cloud`, `hf`, `pyserini`) should remain smoke-testable in CI without live provider calls.
+
 ## Architecture
 
 ```
@@ -95,6 +105,7 @@ src/eval/test.py     # Example usage snippet
 - Passage retrieval uses pyserini's `LuceneIndexReader` for MS MARCO v1 (dl19/dl20) and direct file access for MS MARCO v2 (dl21-23).
 - Modified qrels are written to `modified_qrels/` directory; confusion matrices to `conf_matrix/`.
 - Response parsing (`common_utils.parse_fewshot_response`) uses a ranked list of regex patterns to extract the 0-3 score; falls back to 0 if none match.
+- If a change affects prompt semantics, parsing behavior, backend defaults, or evaluation artifacts, document the migration path in the release note.
 
 ### Programmatic API
 

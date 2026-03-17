@@ -4,6 +4,11 @@ umBRELA is an open-source reproduction of the Bing RELevance Assessor for query-
 
 The package is built for information retrieval evaluation workflows: you can run a single judge, compare multiple judge backends, or generate modified qrels and downstream metrics from an existing retrieval run.
 
+## Releases
+
+- Current version: `0.0.7`
+- Release notes: [docs/release-notes/release-notes-v0.0.7.md](docs/release-notes/release-notes-v0.0.7.md)
+
 ## What it includes
 
 - `GPTJudge` for OpenAI, OpenRouter, or Azure OpenAI models
@@ -238,6 +243,29 @@ For an opt-in live smoke test that exercises the packaged CLI against a real
 OpenAI-compatible backend, run:
 
 ```bash
+UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'
+```
+
+### Testing tiers
+
+Umbrela keeps regression coverage in three layers:
+
+- `core`: fast deterministic CLI, parsing, and envelope coverage
+- `integration`: deterministic offline backend-contract regressions
+- `live`: provider-backed smoke tests gated behind explicit environment variables
+
+Typical local commands:
+
+```bash
+uv sync --group dev --extra cloud
+uv run pytest -q \
+  tests/test_cli_main.py \
+  tests/test_cli_evaluate.py \
+  tests/test_cli_support.py \
+  tests/test_evaluation_utils.py \
+  tests/test_gpt_judge_async.py \
+  tests/test_prompt_templates.py
+uv run pytest -q tests/test_backend_contracts.py
 UMBRELA_LIVE_OPENAI_SMOKE=1 uv run python -m unittest discover -s tests -p 'test_live_openai_smoke.py'
 ```
 
