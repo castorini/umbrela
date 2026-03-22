@@ -61,6 +61,19 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
             )
         ],
     },
+    "serve": {
+        "summary": "Start a FastAPI server for direct umbrela judge requests.",
+        "examples": [
+            "umbrela serve --backend gpt --model gpt-4o --port 8086",
+            (
+                "curl -X POST http://127.0.0.1:8086/v1/judge "
+                "-H 'content-type: application/json' "
+                '-d \'{"query":"q","candidates":["p"]}\''
+            ),
+        ],
+        "routes": ["GET /healthz", "POST /v1/judge"],
+        "inspection_safe": True,
+    },
     "view": {
         "summary": "Inspect umbrela artifact files with a human-readable preview.",
         "examples": [
@@ -75,8 +88,15 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
         "examples": [
             "umbrela prompt list",
             "umbrela prompt show --prompt-type bing --few-shot-count 0",
-            'umbrela prompt render --prompt-type basic --input-json \'{"query":"q","candidates":["p"]}\'',
-            'umbrela prompt render --prompt-type basic --few-shot-count 2 --qrel dl19-passage --input-json \'{"query":"q","candidates":["p"]}\'',
+            (
+                "umbrela prompt render --prompt-type basic --input-json "
+                '\'{"query":"q","candidates":["p"]}\''
+            ),
+            (
+                "umbrela prompt render --prompt-type basic --few-shot-count 2 "
+                "--qrel dl19-passage --input-json "
+                '\'{"query":"q","candidates":["p"]}\''
+            ),
             "umbrela prompt show --prompt-file custom.yaml --output json",
         ],
         "inspection_safe": True,
@@ -263,6 +283,8 @@ def doctor_report() -> dict[str, Any]:
     torch_dep_ready = importlib.util.find_spec("torch") is not None
     transformers_dep_ready = importlib.util.find_spec("transformers") is not None
     fastchat_dep_ready = importlib.util.find_spec("fastchat") is not None
+    fastapi_dep_ready = importlib.util.find_spec("fastapi") is not None
+    uvicorn_dep_ready = importlib.util.find_spec("uvicorn") is not None
 
     def status(
         *,
@@ -344,6 +366,17 @@ def doctor_report() -> dict[str, Any]:
             "validate",
         ]
     }
+    command_readiness["serve"] = status(
+        ready=python_ok and fastapi_dep_ready and uvicorn_dep_ready,
+        missing_deps=[
+            dependency
+            for dependency, available in (
+                ("fastapi", fastapi_dep_ready),
+                ("uvicorn", uvicorn_dep_ready),
+            )
+            if not available
+        ],
+    )
     return {
         "python_version": sys.version.split()[0],
         "python_ok": python_ok,
@@ -357,6 +390,10 @@ def doctor_report() -> dict[str, Any]:
         },
         "pyserini_available": pyserini_available,
         "java_configured": bool(java_home),
+        "optional_dependencies": {
+            "fastapi": fastapi_dep_ready,
+            "uvicorn": uvicorn_dep_ready,
+        },
         "backend_readiness": backend_readiness,
         "command_readiness": command_readiness,
         "overall_status": "ready" if python_ok else "blocked",

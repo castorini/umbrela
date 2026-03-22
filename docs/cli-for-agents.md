@@ -98,4 +98,5 @@ umbrela validate judge \
   --input-json '{"query":"q","candidates":["p1","p2"]}' \
   --output json
 umbrela doctor --output json
+umbrela serve --backend gpt --model gpt-4o --port 8086
 ```

@@ -877,7 +877,7 @@ def test_missing_command_returns_descriptive_text_error(capsys: Any) -> None:
     captured = capsys.readouterr()
     assert "No command provided." in captured.err
     assert (
-        "judge, evaluate, view, prompt, describe, schema, doctor, validate"
+        "judge, evaluate, serve, view, prompt, describe, schema, doctor, validate"
         in captured.err
     )
     assert "Run `umbrela --help` for full usage." in captured.err
@@ -1198,6 +1198,7 @@ def test_doctor_returns_json_envelope(capsys: Any) -> None:
     assert "python_version" in output["metrics"]
     assert "openrouter" in output["metrics"]["provider_keys"]
     assert "backend_readiness" in output["metrics"]
+    assert "serve" in output["metrics"]["command_readiness"]
 
 
 def test_doctor_reports_missing_dependencies(monkeypatch: Any, capsys: Any) -> None:
@@ -1232,6 +1233,97 @@ def test_doctor_reports_missing_dependencies(monkeypatch: Any, capsys: Any) -> N
         "transformers",
         "fastchat",
     ]
+
+
+def test_serve_command_starts_uvicorn(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    seen: dict[str, Any] = {}
+
+    def fake_run(app: Any, host: str, port: int) -> None:
+        seen["app"] = app
+        seen["host"] = host
+        seen["port"] = port
+
+    monkeypatch.setattr("uvicorn.run", fake_run)
+
+    exit_code = main(
+        ["serve", "--backend", "gpt", "--model", "gpt-4o", "--port", "8086"]
+    )
+
+    assert exit_code == 0
+    assert seen["host"] == "0.0.0.0"
+    assert seen["port"] == 8086
+
+
+def test_serve_app_health_and_judge(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": args.model,
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.api.runtime.run_judge_direct", fake_run_judge_direct)
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8086,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+
+    health_response = client.get("/healthz")
+    judge_response = client.post(
+        "/v1/judge",
+        json={"query": "q", "candidates": ["p"]},
+    )
+
+    assert health_response.status_code == 200
+    assert health_response.json() == {"status": "ok"}
+    assert judge_response.status_code == 200
+    assert judge_response.json()["artifacts"][0]["name"] == "judgments"
+
+
+def test_serve_app_rejects_invalid_payload() -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8086,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+
+    response = client.post("/v1/judge", json={"query": 1, "candidates": []})
+
+    assert response.status_code == 400
+    assert response.json()["status"] == "validation_error"
 
 
 def test_top_level_help_includes_command_summaries(capsys: Any) -> None:
@@ -1404,9 +1496,7 @@ def test_config_file_sets_default_output_format(
     assert output["metrics"]["config_file"] == str(config_file)
 
 
-def test_pipe_judge_jsonl_output_is_valid_jsonl(
-    monkeypatch: Any, capsys: Any
-) -> None:
+def test_pipe_judge_jsonl_output_is_valid_jsonl(monkeypatch: Any, capsys: Any) -> None:
     def fake_run_judge_direct(
         request_dict: dict[str, Any], args: Any
     ) -> list[dict[str, Any]]:

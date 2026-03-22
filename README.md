@@ -195,6 +195,16 @@ umbrela validate evaluate \
 umbrela doctor --output json
 ```
 
+Serve the direct judge API:
+
+```bash
+umbrela serve --backend gpt --model gpt-4o --port 8086
+
+curl -X POST http://127.0.0.1:8086/v1/judge \
+  -H 'content-type: application/json' \
+  -d '{"query":"q","candidates":["p"]}'
+```
+
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 
 Supported prompt styles: `bing` (the Bing RELevance Assessor prompt) and
@@ -214,6 +224,7 @@ shared Castorini CLIs.
 
 - Use `--output json` for automation; that is the authoritative machine-readable interface.
 - `umbrela doctor --output json` reports command and backend readiness with explicit `ready`, `missing_env`, `missing_dependency`, or `blocked` states.
+- `umbrela serve` exposes `GET /healthz` and `POST /v1/judge` on port `8086` by default and reuses the same direct-input payload contract as `umbrela judge --input-json`.
 - `umbrela validate judge ...` and `umbrela validate evaluate ...` are non-mutating checks; they do not run models.
 - The demo scripts in `examples/` remain demos, not alternate public CLIs.
 

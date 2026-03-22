@@ -10,8 +10,9 @@ from typing import Any, NoReturn, Sequence, cast
 try:
     import shtab
 except ModuleNotFoundError:  # optional dev dependency
-    shtab = None  # type: ignore[assignment]
+    shtab = None
 
+from umbrela.api.runtime import ServerConfig, execute_direct_judge
 from .adapters import make_data_artifact, make_file_artifact
 from .config import load_config
 from .introspection import (
@@ -51,6 +52,7 @@ RUNTIME_EXIT_CODE = 6
 KNOWN_COMMANDS = (
     "judge",
     "evaluate",
+    "serve",
     "view",
     "prompt",
     "describe",
@@ -67,6 +69,7 @@ TOP_LEVEL_EXAMPLES = (
         "umbrela evaluate --backend gpt --model gpt-4o "
         "--qrel dl19-passage --result-file run.trec --output json"
     ),
+    "umbrela serve --backend gpt --model gpt-4o --port 8086",
     "umbrela doctor --output json",
 )
 
@@ -343,6 +346,7 @@ def build_parser() -> CLIArgumentParser:
             "Common patterns:\n"
             "  umbrela judge --backend gpt --model gpt-4o "
             '--input-json \'{"query":"q","candidates":["p"]}\' --output json\n'
+            "  umbrela serve --backend gpt --model gpt-4o --port 8086\n"
             "  umbrela evaluate --backend gpt --model gpt-4o "
             "--qrel dl19-passage --result-file run.trec --output json\n"
             "  umbrela prompt show --prompt-type bing --few-shot-count 0\n"
@@ -635,6 +639,54 @@ def build_parser() -> CLIArgumentParser:
         help="Logging verbosity: 0=warnings, 1=info, 2=debug.",
     )
 
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Start a FastAPI server for direct judge requests.",
+        description=(
+            "Start a FastAPI server that exposes direct umbrela judge requests "
+            "over HTTP."
+        ),
+    )
+    serve_parser.add_argument("--host", type=str, default="0.0.0.0")
+    serve_parser.add_argument("--port", type=int, default=8086)
+    serve_parser.add_argument(
+        "--backend",
+        choices=["gpt", "gemini", "hf", "os"],
+        required=True,
+        help="Judge backend to execute.",
+    )
+    serve_parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Model identifier for the selected backend.",
+    )
+    serve_parser.add_argument("--prompt-file", type=str)
+    serve_parser.add_argument("--prompt-type", type=str, default="bing")
+    serve_parser.add_argument("--few-shot-count", type=int, default=0)
+    serve_parser.add_argument(
+        "--execution-mode",
+        choices=["sync", "async"],
+        default="sync",
+        help="Execution mode; async is currently supported only for the GPT backend.",
+    )
+    serve_parser.add_argument("--max-concurrency", type=int, default=8)
+    serve_parser.add_argument("--use-azure-openai", action="store_true")
+    serve_parser.add_argument("--use-openrouter", action="store_true")
+    serve_parser.add_argument(
+        "--reasoning-effort",
+        choices=["none", "minimal", "low", "medium", "high", "xhigh"],
+    )
+    serve_parser.add_argument("--device", type=str, default="cuda")
+    serve_parser.add_argument("--include-reasoning", action="store_true")
+    serve_parser.add_argument(
+        "--log-level",
+        type=int,
+        default=0,
+        choices=[0, 1, 2],
+        help="Logging verbosity: 0=warnings, 1=info, 2=debug.",
+    )
+
     describe_parser = subparsers.add_parser(
         "describe",
         help="Inspect structured metadata for a public umbrela command.",
@@ -817,7 +869,10 @@ def build_parser() -> CLIArgumentParser:
     prompt_render_examples.add_argument(
         "--examples-file",
         type=str,
-        help="File containing the exact example block to inject into the rendered prompt.",
+        help=(
+            "File containing the exact example block to inject into the rendered "
+            "prompt."
+        ),
     )
     prompt_render_parser.add_argument(
         "--part",
@@ -996,20 +1051,7 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             validation=validation,
             artifacts=[make_data_artifact("validated-request", normalized)],
         )
-    judgments = run_judge_direct(normalized, args)
-    if not args.include_reasoning:
-        for judgment in judgments:
-            judgment.pop("reasoning", None)
-    return CommandResponse(
-        command="judge",
-        inputs={"mode": "direct", "backend": args.backend},
-        resolved={
-            "execution_mode": args.execution_mode,
-            "normalized_request": normalized,
-        },
-        validation=validation,
-        artifacts=[make_data_artifact("judgments", judgments)],
-    )
+    return execute_direct_judge(payload, args=args, judge_runner=run_judge_direct)
 
 
 def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
@@ -1089,9 +1131,7 @@ def _run_schema_command(args: argparse.Namespace) -> CommandResponse:
     )
 
 
-def _run_doctor_command(
-    *, config_path: Path | None = None
-) -> CommandResponse:
+def _run_doctor_command(*, config_path: Path | None = None) -> CommandResponse:
     report = doctor_report()
     report["config_file"] = str(config_path) if config_path else None
     return CommandResponse(
@@ -1202,7 +1242,8 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
     elif args.few_shot_count > 0:
         if args.qrel is None:
             raise CLIError(
-                "prompt render with --few-shot-count > 0 requires --qrel, --examples-text, or --examples-file",
+                "prompt render with --few-shot-count > 0 requires --qrel, "
+                "--examples-text, or --examples-file",
                 exit_code=INVALID_ARGS_EXIT_CODE,
                 status="validation_error",
                 error_code="missing_prompt_examples",
@@ -1314,11 +1355,53 @@ def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
     return response
 
 
+def _run_serve_command(args: argparse.Namespace) -> CommandResponse:
+    try:
+        import uvicorn
+        from umbrela.api.app import create_app
+    except ModuleNotFoundError as error:
+        raise CLIError(
+            "serve requires FastAPI dependencies; install the `api` extra",
+            exit_code=MISSING_RESOURCE_EXIT_CODE,
+            status="validation_error",
+            error_code="missing_api_dependencies",
+            command="serve",
+            details={"missing_dependencies": ["fastapi", "uvicorn"]},
+        ) from error
+
+    app = create_app(
+        ServerConfig(
+            host=args.host,
+            port=args.port,
+            backend=args.backend,
+            model=args.model,
+            prompt_file=args.prompt_file,
+            prompt_type=args.prompt_type,
+            few_shot_count=args.few_shot_count,
+            execution_mode=args.execution_mode,
+            max_concurrency=args.max_concurrency,
+            use_azure_openai=args.use_azure_openai,
+            use_openrouter=args.use_openrouter,
+            reasoning_effort=args.reasoning_effort,
+            device=args.device,
+            include_reasoning=args.include_reasoning,
+            log_level=args.log_level,
+            quiet=getattr(args, "quiet", False),
+        )
+    )
+    uvicorn.run(app, host=args.host, port=args.port)
+    return CommandResponse(
+        command="serve", resolved={"host": args.host, "port": args.port}
+    )
+
+
 def _run_command(args: argparse.Namespace) -> CommandResponse:
     if args.command == "judge":
         return _run_judge_command(args)
     if args.command == "evaluate":
         return _run_evaluate_command(args)
+    if args.command == "serve":
+        return _run_serve_command(args)
     if args.command == "view":
         return _run_view_command(args)
     if args.command == "prompt":
@@ -1425,6 +1508,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
     elif args.command == "validate":
         sys.stdout.write(json.dumps(response.validation, indent=2) + "\n")
+    elif args.command == "serve":
+        pass
     else:
         sys.stdout.write(json.dumps(response.to_envelope(), indent=2) + "\n")
     return response.exit_code

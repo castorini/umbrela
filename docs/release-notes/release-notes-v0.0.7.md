@@ -5,6 +5,7 @@ Initial release-note scaffold for the packaged CLI and prompt-template workflow.
 ## Included In This Baseline
 
 - Packaged `umbrela` CLI for direct judging, qrel-backed evaluation, schema inspection, validation, doctor, and view commands.
+- FastAPI `umbrela serve` command exposing `GET /healthz` and `POST /v1/judge` on port `8086` by default.
 - YAML-backed prompt templates with the legacy flat-prompt rendering contract preserved.
 - Offline-first contributor workflow built around `uv`.
 
