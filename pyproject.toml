@@ -71,6 +71,7 @@ umbrela = "umbrela.cli.main:main"
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.115.0",
     "mypy>=1.11.2",
     "pre-commit>=3.8.0",
     "pytest>=8.4.2",
@@ -78,6 +79,7 @@ dev = [
     "shtab>=1.7.0",
     "types-PyYAML",
     "types-tqdm",
+    "uvicorn>=0.30.0",
 ]
 
 [tool.setuptools.package-data]
@@ -113,8 +115,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F"]
+ignore = ["E501"]
 
 [tool.mypy]
+files = ["src", "tests"]
 check_untyped_defs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

@@ -8,11 +8,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, NoReturn, Sequence, cast
 
-try:
-    import shtab
-except ModuleNotFoundError:  # optional dev dependency
-    shtab = None
-
 from umbrela.api.runtime import ServerConfig, execute_direct_judge
 from .adapters import make_data_artifact, make_file_artifact
 from .config import load_config
@@ -45,6 +40,14 @@ from .view import (
     load_records,
     render_view_summary,
 )
+
+_shtab: Any | None
+try:
+    import shtab as _shtab
+except ModuleNotFoundError:  # optional dev dependency
+    _shtab = None
+
+shtab = cast(Any, _shtab)
 
 INVALID_ARGS_EXIT_CODE = 2
 MISSING_RESOURCE_EXIT_CODE = 4

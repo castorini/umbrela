@@ -76,21 +76,25 @@ def main() -> None:
     print(f"Run A: {args.run_a}")
     print(f"Run B: {args.run_b}")
     print(f"Common pairs: {n}")
-    print(f"Agreement: {agree}/{n} ({agree/n*100:.1f}%)")
+    print(f"Agreement: {agree}/{n} ({agree / n * 100:.1f}%)")
     print(f"Cohen's kappa: {kappa:.3f}")
 
     # Label distributions
     dist_a = Counter(common_labels_a)
     dist_b = Counter(common_labels_b)
-    print(f"\nLabel distribution (common pairs):")
+    print("\nLabel distribution (common pairs):")
     print(f"  {'Label':<6} {'Run A':>8} {'Run B':>8}")
     for label in sorted(set(dist_a.keys()) | set(dist_b.keys())):
         print(f"  {label:<6} {dist_a.get(label, 0):>8} {dist_b.get(label, 0):>8}")
 
     # Per-label agreement
-    print(f"\nPer-label agreement:")
+    print("\nPer-label agreement:")
     for label in sorted(set(common_labels_a) | set(common_labels_b)):
-        both = sum(1 for la, lb in zip(common_labels_a, common_labels_b) if la == label and lb == label)
+        both = sum(
+            1
+            for la, lb in zip(common_labels_a, common_labels_b)
+            if la == label and lb == label
+        )
         in_a = sum(1 for la in common_labels_a if la == label)
         in_b = sum(1 for lb in common_labels_b if lb == label)
         prec = both / in_b if in_b > 0 else 0

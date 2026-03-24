@@ -11,11 +11,18 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
+        pass_filenames: false
+        args: [src, tests]
         additional_dependencies:
+          - fastapi
           - matplotlib
+          - openai
+          - pytest
           - python-dotenv
           - retry
           - scikit-learn
+          - shtab
           - types-PyYAML
           - types-tqdm
           - typing-extensions
+          - uvicorn

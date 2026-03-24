@@ -6,6 +6,7 @@ import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from textwrap import indent
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.live
     "Set UMBRELA_LIVE_OPENAI_SMOKE=1 to run live OpenAI smoke tests.",
 )
 class UmbrelaLiveOpenAISmokeTests(unittest.TestCase):
-    def _pretty_render(self, payload: dict[str, object]) -> str:
+    def _pretty_render(self, payload: dict[str, Any]) -> str:
         artifact = payload["artifacts"][0]
         judgments = artifact["data"]
         model_name = None

@@ -99,9 +99,13 @@ def run_judge_batch(
 ) -> list[dict[str, Any]]:
     quiet = getattr(args, "quiet", False)
     output_format = getattr(args, "output", "text")
-    disable_progress = quiet or output_format in ("json", "jsonl") or not sys.stderr.isatty()
+    disable_progress = (
+        quiet or output_format in ("json", "jsonl") or not sys.stderr.isatty()
+    )
     judgments: list[dict[str, Any]] = []
-    for record in tqdm(records, desc="Judging", file=sys.stderr, disable=disable_progress):
+    for record in tqdm(
+        records, desc="Judging", file=sys.stderr, disable=disable_progress
+    ):
         judgments.extend(run_judge_direct(record, args))
     return judgments
 
