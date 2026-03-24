@@ -42,7 +42,8 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 "query": "string | {text: string, qid?: string}",
                 "candidates": [
                     "string | {text: string, docid?: string} | "
-                    "{doc: {segment: string}, docid?: string}"
+                    "{doc: string | {segment: string} | "
+                    "{contents: string}, docid?: string}"
                 ],
             },
         },
@@ -69,6 +70,11 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 "curl -X POST http://127.0.0.1:8086/v1/judge "
                 "-H 'content-type: application/json' "
                 '-d \'{"query":"q","candidates":["p"]}\''
+            ),
+            (
+                'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
+                "| curl -s -X POST http://127.0.0.1:8086/v1/judge "
+                '-H "content-type: application/json" --data-binary @- | jq'
             ),
         ],
         "routes": ["GET /healthz", "POST /v1/judge"],
@@ -167,9 +173,16 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                             "properties": {
                                 "docid": {"type": "string"},
                                 "doc": {
-                                    "type": "object",
-                                    "required": ["segment"],
-                                    "properties": {"segment": {"type": "string"}},
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "segment": {"type": "string"},
+                                                "contents": {"type": "string"},
+                                            },
+                                        },
+                                    ]
                                 },
                             },
                         },

@@ -203,6 +203,12 @@ umbrela serve --backend gpt --model gpt-4o --port 8086
 curl -X POST http://127.0.0.1:8086/v1/judge \
   -H 'content-type: application/json' \
   -d '{"query":"q","candidates":["p"]}'
+
+curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=what%20is%20python%20commonly%20used%20for" \
+  | curl -s -X POST http://127.0.0.1:8086/v1/judge \
+      -H 'content-type: application/json' \
+      --data-binary @- \
+  | jq
 ```
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.

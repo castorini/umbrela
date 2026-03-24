@@ -19,10 +19,14 @@ def _normalize_candidate(candidate: Any, index: int) -> dict[str, Any]:
     if isinstance(candidate, str):
         return {"docid": f"d{index}", "doc": {"segment": candidate}}
     if isinstance(candidate, dict):
-        if isinstance(candidate.get("doc"), dict):
-            segment = candidate["doc"].get("segment") or candidate["doc"].get(
-                "contents"
-            )
+        doc = candidate.get("doc")
+        if isinstance(doc, str):
+            return {
+                "docid": str(candidate.get("docid", f"d{index}")),
+                "doc": {"segment": doc},
+            }
+        if isinstance(doc, dict):
+            segment = doc.get("segment") or doc.get("contents")
             if isinstance(segment, str):
                 return {
                     "docid": str(candidate.get("docid", f"d{index}")),
@@ -35,7 +39,8 @@ def _normalize_candidate(candidate: Any, index: int) -> dict[str, Any]:
             }
     raise ValueError(
         "Direct judge input candidates must be strings or "
-        "objects containing `text`, `doc.segment`, or `doc.contents`."
+        "objects containing `text`, `doc` as a string, `doc.segment`, "
+        "or `doc.contents`."
     )
 
 

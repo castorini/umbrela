@@ -232,6 +232,67 @@ def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> No
     assert output["artifacts"][0]["data"][0]["reasoning"] == "reasoning content"
 
 
+def test_direct_judge_accepts_anserini_rest_payload(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        assert args.model == "gpt-4o"
+        assert request_dict["query"]["text"] == "what is python"
+        assert request_dict["query"]["qid"] == "q0"
+        assert request_dict["candidates"][0]["docid"] == "1737459"
+        assert (
+            request_dict["candidates"][0]["doc"]["segment"]
+            == "Python is widely used for web development."
+        )
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps(
+                {
+                    "api": "v1",
+                    "index": "msmarco-v1-passage",
+                    "query": {"text": "what is python"},
+                    "candidates": [
+                        {
+                            "docid": "1737459",
+                            "score": 10.58,
+                            "rank": 1,
+                            "doc": "Python is widely used for web development.",
+                        }
+                    ],
+                }
+            ),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "success"
+
+
 def test_direct_judge_text_output_uses_query_candidate_judgment_reasoning(
     monkeypatch: Any, capsys: Any
 ) -> None:
@@ -1293,7 +1354,19 @@ def test_serve_app_health_and_judge(monkeypatch: Any) -> None:
     health_response = client.get("/healthz")
     judge_response = client.post(
         "/v1/judge",
-        json={"query": "q", "candidates": ["p"]},
+        json={
+            "api": "v1",
+            "index": "msmarco-v1-passage",
+            "query": {"text": "q"},
+            "candidates": [
+                {
+                    "docid": "d0",
+                    "score": 1.0,
+                    "rank": 1,
+                    "doc": "p",
+                }
+            ],
+        },
     )
 
     assert health_response.status_code == 200
