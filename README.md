@@ -133,6 +133,8 @@ umbrela judge \
   --output json
 ```
 
+Direct JSON output is compact by default for direct `judge` and `serve`: judgment records keep `query`, `passage`, and `judgment`, plus `reasoning` only when `--include-reasoning` is requested. To include raw trace fields such as `prediction`, `result_status`, and `prompt`, add `--include-trace`. Add `--redact-prompts` if you want trace output without the raw prompt text.
+
 Direct input from standard input:
 
 ```bash
@@ -210,6 +212,14 @@ curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=what%20is%20py
       --data-binary @- \
   | jq
 ```
+
+If you want the old verbose direct-response fields for debugging, start the server with:
+
+```bash
+umbrela serve --backend gpt --model gpt-4o --include-trace --redact-prompts --port 8086
+```
+
+Batch `umbrela judge --input-file ... --output-file ...` JSONL output remains unchanged for backward compatibility.
 
 Supported `--qrel` values: `dl19-passage`, `dl20-passage`, `dl21-passage`, `dl22-passage`, `dl23-passage`, `robust04`, `robust05`.
 

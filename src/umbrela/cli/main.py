@@ -4,6 +4,7 @@ import argparse
 import importlib.metadata
 import json
 import sys
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, NoReturn, Sequence, cast
 
@@ -334,6 +335,16 @@ def _read_direct_payload(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+def _direct_judge_response_args(args: argparse.Namespace) -> argparse.Namespace:
+    if getattr(args, "output", "text") != "text" or getattr(
+        args, "include_trace", False
+    ):
+        return args
+    response_args = deepcopy(args)
+    response_args.include_trace = True
+    return response_args
+
+
 def build_parser() -> CLIArgumentParser:
     parser = CLIArgumentParser(
         prog="umbrela",
@@ -467,6 +478,16 @@ def build_parser() -> CLIArgumentParser:
         "--include-reasoning",
         action="store_true",
         help="Include model reasoning fields in emitted results where available.",
+    )
+    judge_parser.add_argument(
+        "--include-trace",
+        action="store_true",
+        help="Include prompt, raw prediction, and parse-status trace fields.",
+    )
+    judge_parser.add_argument(
+        "--redact-prompts",
+        action="store_true",
+        help="Redact prompt text when --include-trace is enabled.",
     )
     judge_parser.add_argument(
         "--min-judgment",
@@ -679,6 +700,8 @@ def build_parser() -> CLIArgumentParser:
     )
     serve_parser.add_argument("--device", type=str, default="cuda")
     serve_parser.add_argument("--include-reasoning", action="store_true")
+    serve_parser.add_argument("--include-trace", action="store_true")
+    serve_parser.add_argument("--redact-prompts", action="store_true")
     serve_parser.add_argument(
         "--log-level",
         type=int,
@@ -1045,13 +1068,21 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
             mode="validate" if args.validate_only else "dry-run",
             inputs={"mode": "direct", "backend": args.backend},
             resolved={
+                "input_mode": "direct",
                 "execution_mode": args.execution_mode,
-                "normalized_request": normalized,
+                "backend": args.backend,
+                "model": args.model,
+                "prompt_type": args.prompt_type,
+                "few_shot_count": args.few_shot_count,
             },
             validation=validation,
             artifacts=[make_data_artifact("validated-request", normalized)],
         )
-    return execute_direct_judge(payload, args=args, judge_runner=run_judge_direct)
+    return execute_direct_judge(
+        payload,
+        args=_direct_judge_response_args(args),
+        judge_runner=run_judge_direct,
+    )
 
 
 def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
@@ -1385,6 +1416,8 @@ def _run_serve_command(args: argparse.Namespace) -> CommandResponse:
             reasoning_effort=args.reasoning_effort,
             device=args.device,
             include_reasoning=args.include_reasoning,
+            include_trace=args.include_trace,
+            redact_prompts=args.redact_prompts,
             log_level=args.log_level,
             quiet=getattr(args, "quiet", False),
         )

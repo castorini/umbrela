@@ -17,12 +17,9 @@ ANSI_CODES = {
 }
 
 JUDGE_REQUIRED_KEYS = {
-    "model",
     "query",
     "passage",
-    "prediction",
     "judgment",
-    "result_status",
 }
 
 
@@ -104,7 +101,7 @@ def summarize_judgments(records: list[dict[str, Any]]) -> dict[str, Any]:
         judgment = record.get("judgment")
         if judgment in (0, 1, 2, 3):
             histogram[str(judgment)] += 1
-        if int(record.get("result_status", 0)) == 0:
+        if int(record.get("result_status", 1)) == 0:
             invalid_count += 1
         if record.get("prompt"):
             prompt_count += 1
@@ -129,11 +126,12 @@ def build_view_summary(
     for record in records[:limit]:
         item = {
             "judgment": record["judgment"],
-            "result_status": record["result_status"],
+            "result_status": record.get("result_status", 1),
             "query": _truncate(str(record["query"]), 140),
             "passage": _truncate(str(record["passage"]), 160),
-            "prediction": _truncate(str(record["prediction"]), 120),
         }
+        if "prediction" in record:
+            item["prediction"] = _truncate(str(record["prediction"]), 120)
         if show_prompts and record.get("prompt"):
             item["prompt"] = _truncate(str(record["prompt"]), 240)
         sampled_records.append(item)
@@ -173,7 +171,8 @@ def render_view_summary(view: dict[str, Any], *, color: str) -> str:
         lines.append(f"[{index}] score={score_text} status={status_text}")
         lines.append(f"query: {record['query']}")
         lines.append(f"passage: {record['passage']}")
-        lines.append(f"prediction: {record['prediction']}")
+        if "prediction" in record:
+            lines.append(f"prediction: {record['prediction']}")
         if "prompt" in record:
             lines.append(f"prompt: {record['prompt']}")
     return "\n".join(lines)

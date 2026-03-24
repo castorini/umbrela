@@ -35,6 +35,11 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 "--input-file requests.jsonl --output-file judgments.jsonl "
                 "--filtered-output-file relevant.jsonl --min-judgment 2"
             ),
+            (
+                "umbrela judge --backend gpt --model gpt-4o "
+                '--input-json \'{"query":"q","candidates":["p"]}\' '
+                "--include-trace --redact-prompts --output json"
+            ),
         ],
         "direct_input": {
             "ids_optional": True,
@@ -75,6 +80,10 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
                 "| curl -s -X POST http://127.0.0.1:8086/v1/judge "
                 '-H "content-type: application/json" --data-binary @- | jq'
+            ),
+            (
+                "umbrela serve --backend gpt --model gpt-4o "
+                "--include-trace --redact-prompts --port 8086"
             ),
         ],
         "routes": ["GET /healthz", "POST /v1/judge"],
@@ -208,15 +217,17 @@ SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "judge-output": {
         "type": "object",
-        "required": [
-            "model",
-            "query",
-            "passage",
-            "prompt",
-            "prediction",
-            "judgment",
-            "result_status",
-        ],
+        "required": ["query", "passage", "judgment"],
+        "properties": {
+            "query": {"type": "string"},
+            "passage": {"type": "string"},
+            "judgment": {"type": "integer"},
+            "reasoning": {"type": "string"},
+            "prediction": {"type": "string"},
+            "result_status": {"type": "integer"},
+            "prompt": {"type": "string"},
+            "model": {"type": "string"},
+        },
     },
     "evaluate-output": {
         "type": "object",

@@ -190,7 +190,20 @@ def test_direct_judge_via_input_json(monkeypatch: Any, capsys: Any) -> None:
     assert output["artifacts"][0]["kind"] == "data"
     assert output["artifacts"][0]["name"] == "judgments"
     assert output["artifacts"][0]["data"][0]["judgment"] == 3
+    assert (
+        output["artifacts"][0]["data"][0]["query"] == "how long is life cycle of flea"
+    )
+    assert output["artifacts"][0]["data"][0]["passage"].startswith(
+        "The life cycle of a flea can last"
+    )
+    assert "prediction" not in output["artifacts"][0]["data"][0]
+    assert "result_status" not in output["artifacts"][0]["data"][0]
+    assert "prompt" not in output["artifacts"][0]["data"][0]
     assert "reasoning" not in output["artifacts"][0]["data"][0]
+    assert "normalized_request" not in output["resolved"]
+    assert output["resolved"]["backend"] == "gpt"
+    assert output["resolved"]["model"] == "gpt-4o"
+    assert output["resolved"]["input_mode"] == "direct"
 
 
 def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> None:
@@ -230,6 +243,91 @@ def test_direct_judge_can_include_reasoning(monkeypatch: Any, capsys: Any) -> No
     assert exit_code == 0
     output = json.loads(capsys.readouterr().out)
     assert output["artifacts"][0]["data"][0]["reasoning"] == "reasoning content"
+    assert "prediction" not in output["artifacts"][0]["data"][0]
+
+
+def test_direct_judge_can_include_trace(monkeypatch: Any, capsys: Any) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict, args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q",
+                "passage": "p",
+                "prompt": "prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--include-trace",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    record = output["artifacts"][0]["data"][0]
+    assert record["prediction"] == "2"
+    assert record["result_status"] == 1
+    assert record["prompt"] == "prompt"
+
+
+def test_direct_judge_can_redact_prompts_when_trace_enabled(
+    monkeypatch: Any, capsys: Any
+) -> None:
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict, args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q",
+                "passage": "p",
+                "prompt": "very secret prompt",
+                "prediction": "2",
+                "judgment": 2,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_run_judge_direct)
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps({"query": "q", "candidates": ["p"]}),
+            "--include-trace",
+            "--redact-prompts",
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["artifacts"][0]["data"][0]["prompt"] == "[redacted]"
 
 
 def test_direct_judge_accepts_anserini_rest_payload(
@@ -907,6 +1005,54 @@ def test_view_judgments_text_can_show_prompts(tmp_path: Path, capsys: Any) -> No
     assert "prompt: very secret prompt" in stdout
 
 
+def test_view_compact_judgments_text_defaults_status_and_hides_prediction(
+    tmp_path: Path, capsys: Any
+) -> None:
+    path = tmp_path / "compact_judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "query": "query",
+                "passage": "passage",
+                "judgment": 3,
+            }
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--color", "never"])
+
+    assert exit_code == 0
+    stdout = capsys.readouterr().out
+    assert "score=3 status=1" in stdout
+    assert "prediction:" not in stdout
+
+
+def test_view_compact_judgments_json_summary_omits_prediction_and_prompt(
+    tmp_path: Path, capsys: Any
+) -> None:
+    path = tmp_path / "compact_judgments.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "query": "query",
+                "passage": "passage",
+                "judgment": 2,
+            }
+        ],
+    )
+
+    exit_code = main(["view", str(path), "--records", "1", "--output", "json"])
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    sampled = output["artifacts"][0]["data"]["sampled_records"][0]
+    assert sampled["result_status"] == 1
+    assert "prediction" not in sampled
+    assert "prompt" not in sampled
+
+
 def test_view_empty_file_returns_json_error(tmp_path: Path, capsys: Any) -> None:
     path = tmp_path / "empty.jsonl"
     path.write_text("", encoding="utf-8")
@@ -1372,7 +1518,59 @@ def test_serve_app_health_and_judge(monkeypatch: Any) -> None:
     assert health_response.status_code == 200
     assert health_response.json() == {"status": "ok"}
     assert judge_response.status_code == 200
-    assert judge_response.json()["artifacts"][0]["name"] == "judgments"
+    envelope = judge_response.json()
+    assert envelope["artifacts"][0]["name"] == "judgments"
+    assert "prediction" not in envelope["artifacts"][0]["data"][0]
+    assert "prompt" not in envelope["artifacts"][0]["data"][0]
+    assert "result_status" not in envelope["artifacts"][0]["data"][0]
+    assert "normalized_request" not in envelope["resolved"]
+
+
+def test_serve_app_can_include_trace_and_redact_prompts(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict, args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q",
+                "passage": "p",
+                "prompt": "very secret prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.api.runtime.run_judge_direct", fake_run_judge_direct)
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8086,
+                backend="gpt",
+                model="gpt-4o",
+                include_trace=True,
+                redact_prompts=True,
+            )
+        )
+    )
+
+    response = client.post("/v1/judge", json={"query": "q", "candidates": ["p"]})
+
+    assert response.status_code == 200
+    record = response.json()["artifacts"][0]["data"][0]
+    assert record["prediction"] == "3"
+    assert record["result_status"] == 1
+    assert record["prompt"] == "[redacted]"
 
 
 def test_serve_app_rejects_invalid_payload() -> None:

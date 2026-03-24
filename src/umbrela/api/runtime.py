@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Any
 
-from umbrela.cli.adapters import make_data_artifact
+from umbrela.cli.adapters import make_data_artifact, serialize_direct_judgment
 from umbrela.cli.introspection import validate_judge_payload
 from umbrela.cli.normalize import normalize_direct_judge_input
 from umbrela.cli.operations import run_judge_direct
@@ -27,6 +27,8 @@ class ServerConfig:
     reasoning_effort: str | None = None
     device: str = "cuda"
     include_reasoning: bool = False
+    include_trace: bool = False
+    redact_prompts: bool = False
     log_level: int = 0
     quiet: bool = False
 
@@ -46,6 +48,8 @@ def _base_args(config: ServerConfig) -> argparse.Namespace:
         reasoning_effort=config.reasoning_effort,
         device=config.device,
         include_reasoning=config.include_reasoning,
+        include_trace=config.include_trace,
+        redact_prompts=config.redact_prompts,
         log_level=config.log_level,
         quiet=config.quiet,
         qrel="dl19-passage",
@@ -62,16 +66,25 @@ def execute_direct_judge(
     validation = validate_judge_payload(payload)
     normalized = normalize_direct_judge_input(payload)
     runner = judge_runner or run_judge_direct
-    judgments = runner(normalized, args)
-    if not args.include_reasoning:
-        for judgment in judgments:
-            judgment.pop("reasoning", None)
+    judgments = [
+        serialize_direct_judgment(
+            judgment,
+            include_reasoning=args.include_reasoning,
+            include_trace=getattr(args, "include_trace", False),
+            redact_prompts=getattr(args, "redact_prompts", False),
+        )
+        for judgment in runner(normalized, args)
+    ]
     return CommandResponse(
         command="judge",
         inputs={"mode": "direct", "backend": args.backend},
         resolved={
+            "input_mode": "direct",
             "execution_mode": args.execution_mode,
-            "normalized_request": normalized,
+            "backend": args.backend,
+            "model": args.model,
+            "prompt_type": args.prompt_type,
+            "few_shot_count": args.few_shot_count,
         },
         validation=validation,
         artifacts=[make_data_artifact("judgments", judgments)],
