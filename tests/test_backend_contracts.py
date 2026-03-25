@@ -57,7 +57,7 @@ def _install_fake_optional_modules(monkeypatch: Any) -> None:
     set_module("vertexai.generative_models", fake_gen)
 
     fake_retry = types.ModuleType("retry")
-    setattr(fake_retry, "retry", lambda *args, **kwargs: (lambda fn: fn))
+    setattr(fake_retry, "retry", lambda *args, **kwargs: lambda fn: fn)
     set_module("retry", fake_retry)
 
     fake_datasets = types.ModuleType("datasets")
