@@ -137,7 +137,7 @@ def prepare_judgments(
     if reasoning_outputs is None:
         reasoning_outputs = [None] * len(outputs)
     for output, reasoning, (query, passage), prompt in zip(
-        outputs, reasoning_outputs, query_passage, prompts, strict=False
+        outputs, reasoning_outputs, query_passage, prompts, strict=True
     ):
         parse_source = output
         if reasoning:

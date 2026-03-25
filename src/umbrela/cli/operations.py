@@ -163,7 +163,7 @@ def run_evaluate(args: Any) -> EvaluateResult:
     results: list[dict[int | str, dict[int | str, str]]] = []
     artifact_paths: list[str] = []
     stdout_parts: list[str] = []
-    for judge_backend, model_name in zip(llm_judges, model_names, strict=False):
+    for judge_backend, model_name in zip(llm_judges, model_names, strict=True):
         nested_args = type("Args", (), vars(args).copy())()
         nested_args.backend = (
             judge_backend.removesuffix("Judge")

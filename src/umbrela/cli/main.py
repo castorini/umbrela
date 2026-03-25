@@ -278,7 +278,7 @@ def _filtered_records_from_judgments(
             )
         kept_candidates = [
             candidate
-            for candidate, judgment in zip(candidates, record_judgments, strict=False)
+            for candidate, judgment in zip(candidates, record_judgments, strict=True)
             if int(judgment["judgment"]) >= min_judgment
         ]
         if not kept_candidates:
