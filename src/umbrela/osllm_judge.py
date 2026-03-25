@@ -1,7 +1,7 @@
 from typing import Any
 
-from fastchat.model import load_model
 import torch
+from fastchat.model import load_model
 from tqdm import tqdm
 from transformers.generation import GenerationConfig
 

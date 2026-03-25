@@ -8,7 +8,6 @@ from typing import Any
 
 from umbrela.utils import qrel_utils
 
-
 COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
     "judge": {
         "summary": (

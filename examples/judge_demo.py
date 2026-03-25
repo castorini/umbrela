@@ -89,7 +89,7 @@ def print_results(
     print()
     print(f"Received {len(judgments)} judgments:")
     for rank, (candidate, judgment) in enumerate(
-        zip(request["candidates"], judgments), start=1
+        zip(request["candidates"], judgments, strict=False), start=1
     ):
         label = judgment["judgment"]
         parsed = "yes" if judgment["result_status"] else "no"

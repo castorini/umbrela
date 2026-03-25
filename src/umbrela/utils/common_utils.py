@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, TypeAlias, TypeVar, cast
 
 import matplotlib.pyplot as plt
-from sklearn.metrics import cohen_kappa_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, cohen_kappa_score, confusion_matrix
 
 T = TypeVar("T")
 QueryPassage: TypeAlias = list[tuple[str, str]]
@@ -137,7 +137,7 @@ def prepare_judgments(
     if reasoning_outputs is None:
         reasoning_outputs = [None] * len(outputs)
     for output, reasoning, (query, passage), prompt in zip(
-        outputs, reasoning_outputs, query_passage, prompts
+        outputs, reasoning_outputs, query_passage, prompts, strict=False
     ):
         parse_source = output
         if reasoning:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from importlib.resources import files
 from pathlib import Path
 from string import Formatter
@@ -95,13 +95,13 @@ def _normalize_template_data(data: Any, source_path: Path) -> PromptTemplate:
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _load_template_from_path(template_path_str: str) -> PromptTemplate:
     template_path = Path(template_path_str)
     if not template_path.exists():
         raise FileNotFoundError(f"Prompt template not found at {template_path}")
 
-    with open(template_path, "r", encoding="utf-8") as handle:
+    with open(template_path, encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
 
     return _normalize_template_data(data, template_path)

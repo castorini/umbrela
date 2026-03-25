@@ -4,11 +4,14 @@ import argparse
 import importlib.metadata
 import json
 import sys
+from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, NoReturn, Sequence, cast
+from typing import Any, NoReturn, cast
 
 from umbrela.api.runtime import ServerConfig, execute_direct_judge
+from umbrela.utils import qrel_utils
+
 from .adapters import make_data_artifact, make_file_artifact
 from .config import load_config
 from .introspection import (
@@ -27,12 +30,11 @@ from .prompt_view import (
     build_rendered_prompt_view,
     list_prompt_templates,
     render_prompt_catalog_text,
-    render_rendered_prompt_text,
     render_prompt_template_text,
+    render_rendered_prompt_text,
     resolve_prompt_template,
 )
 from .responses import CommandResponse
-from umbrela.utils import qrel_utils
 from .view import (
     ViewError,
     build_view_summary,
@@ -276,7 +278,7 @@ def _filtered_records_from_judgments(
             )
         kept_candidates = [
             candidate
-            for candidate, judgment in zip(candidates, record_judgments)
+            for candidate, judgment in zip(candidates, record_judgments, strict=False)
             if int(judgment["judgment"]) >= min_judgment
         ]
         if not kept_candidates:
@@ -1392,6 +1394,7 @@ def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
 def _run_serve_command(args: argparse.Namespace) -> CommandResponse:
     try:
         import uvicorn
+
         from umbrela.api.app import create_app
     except ModuleNotFoundError as error:
         raise CLIError(

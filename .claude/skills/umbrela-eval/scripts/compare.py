@@ -32,7 +32,7 @@ def cohens_kappa(labels_a: list[int], labels_b: list[int]) -> float:
     n = len(labels_a)
     all_labels = sorted(set(labels_a) | set(labels_b))
     # Observed agreement
-    agree = sum(1 for a, b in zip(labels_a, labels_b) if a == b)
+    agree = sum(1 for a, b in zip(labels_a, labels_b, strict=False) if a == b)
     po = agree / n
     # Expected agreement
     pe = 0.0
@@ -69,7 +69,9 @@ def main() -> None:
 
     # Agreement
     n = len(common_labels_a)
-    agree = sum(1 for la, lb in zip(common_labels_a, common_labels_b) if la == lb)
+    agree = sum(
+        1 for la, lb in zip(common_labels_a, common_labels_b, strict=False) if la == lb
+    )
     kappa = cohens_kappa(common_labels_a, common_labels_b)
 
     print(f"Qrel: {args.qrel}")
@@ -92,7 +94,7 @@ def main() -> None:
     for label in sorted(set(common_labels_a) | set(common_labels_b)):
         both = sum(
             1
-            for la, lb in zip(common_labels_a, common_labels_b)
+            for la, lb in zip(common_labels_a, common_labels_b, strict=False)
             if la == label and lb == label
         )
         in_a = sum(1 for la in common_labels_a if la == label)

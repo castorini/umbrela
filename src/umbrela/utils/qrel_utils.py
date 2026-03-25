@@ -1,10 +1,10 @@
-from functools import lru_cache
 import json
 import os
 import platform
 import random
 import re
 import subprocess
+from functools import lru_cache
 from typing import Any, TypeAlias, cast
 
 try:
@@ -155,7 +155,7 @@ def get_qrels(qrel_info: str) -> QrelsData:
     file_path = get_qrel_path(qrel_info)
 
     qrels: QrelsData = {}
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         for line in f:
             qid, _, docid, judgement = line.rstrip().split()
 
@@ -192,7 +192,7 @@ def get_passage_msv2(pid: str) -> str:
     assert string1 == "msmarco" and string2 == "passage"
 
     with open(
-        f"../data/msmarco_v2_passage/msmarco_passage_{bundlenum}", "rt", encoding="utf8"
+        f"../data/msmarco_v2_passage/msmarco_passage_{bundlenum}", encoding="utf8"
     ) as in_fh:
         in_fh.seek(int(position))
         json_string = in_fh.readline()

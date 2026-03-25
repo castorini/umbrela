@@ -27,8 +27,8 @@ def create_judge(args: Any) -> Any:
     prompt_file = getattr(args, "prompt_file", None)
     prompt_type = getattr(args, "prompt_type", "bing")
     few_shot_count = getattr(args, "few_shot_count", 0)
-    backend = getattr(args, "backend")
-    model_name = getattr(args, "model")
+    backend = args.backend
+    model_name = args.model
 
     if backend == "gpt":
         from umbrela.gpt_judge import GPTJudge
@@ -163,7 +163,7 @@ def run_evaluate(args: Any) -> EvaluateResult:
     results: list[dict[int | str, dict[int | str, str]]] = []
     artifact_paths: list[str] = []
     stdout_parts: list[str] = []
-    for judge_backend, model_name in zip(llm_judges, model_names):
+    for judge_backend, model_name in zip(llm_judges, model_names, strict=False):
         nested_args = type("Args", (), vars(args).copy())()
         nested_args.backend = (
             judge_backend.removesuffix("Judge")

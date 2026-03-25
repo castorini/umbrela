@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 ANSI_CODES = {
     "reset": "\033[0m",
     "bold": "\033[1m",
