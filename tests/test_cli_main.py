@@ -1597,6 +1597,73 @@ def test_serve_app_rejects_invalid_payload() -> None:
     assert response.json()["status"] == "validation_error"
 
 
+def test_serve_app_accepts_rank_llm_envelope_payload(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict, args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": "q",
+                "passage": "p",
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.api.runtime.run_judge_direct", fake_run_judge_direct)
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8086,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+
+    response = client.post(
+        "/v1/judge",
+        json={
+            "schema_version": "castorini.cli.v1",
+            "repo": "rank_llm",
+            "command": "rerank",
+            "artifacts": [
+                {
+                    "name": "rerank-results",
+                    "kind": "data",
+                    "value": [
+                        {
+                            "query": {"text": "q", "qid": ""},
+                            "candidates": [
+                                {
+                                    "docid": "d0",
+                                    "score": 1.0,
+                                    "doc": {"contents": "p"},
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["artifacts"][0]["name"] == "judgments"
+
+
 def test_top_level_help_includes_command_summaries(capsys: Any) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["--help"])

@@ -3,6 +3,40 @@ from __future__ import annotations
 from typing import Any, cast
 
 
+def _unwrap_castorini_envelope(payload: dict[str, Any]) -> dict[str, Any]:
+    schema_version = payload.get("schema_version")
+    artifacts = payload.get("artifacts")
+    if schema_version != "castorini.cli.v1" or not isinstance(artifacts, list):
+        return payload
+
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        artifact_payload = artifact.get("data", artifact.get("value"))
+        if (
+            isinstance(artifact_payload, dict)
+            and {
+                "query",
+                "candidates",
+            }
+            <= artifact_payload.keys()
+        ):
+            return artifact_payload
+        if isinstance(artifact_payload, list):
+            if len(artifact_payload) != 1:
+                raise ValueError(
+                    "direct judge envelope input requires exactly one record"
+                )
+            record = artifact_payload[0]
+            if isinstance(record, dict) and {"query", "candidates"} <= record.keys():
+                return record
+
+    raise ValueError(
+        "direct judge envelope input must contain a single artifact record "
+        "with query and candidates"
+    )
+
+
 def _normalize_query(query: Any) -> dict[str, str]:
     if isinstance(query, str):
         return {"qid": "q0", "text": query}
@@ -45,6 +79,7 @@ def _normalize_candidate(candidate: Any, index: int) -> dict[str, Any]:
 
 
 def normalize_direct_judge_input(payload: dict[str, Any]) -> dict[str, Any]:
+    payload = _unwrap_castorini_envelope(payload)
     candidates = payload.get("candidates")
     if not isinstance(candidates, list) or not candidates:
         raise ValueError("Direct judge input requires a non-empty `candidates` array.")

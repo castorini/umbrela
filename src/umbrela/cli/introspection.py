@@ -81,6 +81,13 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 '-H "content-type: application/json" --data-binary @- | jq'
             ),
             (
+                'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
+                "| curl -s -X POST http://127.0.0.1:8082/v1/rerank "
+                '-H "content-type: application/json" --data-binary @- '
+                "| curl -s -X POST http://127.0.0.1:8086/v1/judge "
+                '-H "content-type: application/json" --data-binary @- | jq'
+            ),
+            (
                 "umbrela serve --backend gpt --model gpt-4o "
                 "--include-trace --redact-prompts --port 8086"
             ),
