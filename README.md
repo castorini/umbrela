@@ -200,14 +200,14 @@ umbrela doctor --output json
 Serve the direct judge API:
 
 ```bash
-umbrela serve --backend gpt --model gpt-4o --port 8086
+umbrela serve --backend gpt --model gpt-4o --port 8084
 
-curl -X POST http://127.0.0.1:8086/v1/judge \
+curl -X POST http://127.0.0.1:8084/v1/judge \
   -H 'content-type: application/json' \
   -d '{"query":"q","candidates":["p"]}'
 
 curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=what%20is%20python%20commonly%20used%20for" \
-  | curl -s -X POST http://127.0.0.1:8086/v1/judge \
+  | curl -s -X POST http://127.0.0.1:8084/v1/judge \
       -H 'content-type: application/json' \
       --data-binary @- \
   | jq
@@ -216,7 +216,7 @@ curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=what%20is%20py
 If you want the old verbose direct-response fields for debugging, start the server with:
 
 ```bash
-umbrela serve --backend gpt --model gpt-4o --include-trace --redact-prompts --port 8086
+umbrela serve --backend gpt --model gpt-4o --include-trace --redact-prompts --port 8084
 ```
 
 Batch `umbrela judge --input-file ... --output-file ...` JSONL output remains unchanged for backward compatibility.
@@ -240,7 +240,7 @@ shared Castorini CLIs.
 
 - Use `--output json` for automation; that is the authoritative machine-readable interface.
 - `umbrela doctor --output json` reports command and backend readiness with explicit `ready`, `missing_env`, `missing_dependency`, or `blocked` states.
-- `umbrela serve` exposes `GET /healthz` and `POST /v1/judge` on port `8086` by default and reuses the same direct-input payload contract as `umbrela judge --input-json`.
+- `umbrela serve` exposes `GET /healthz` and `POST /v1/judge` on port `8084` by default and reuses the same direct-input payload contract as `umbrela judge --input-json`.
 - `umbrela validate judge ...` and `umbrela validate evaluate ...` are non-mutating checks; they do not run models.
 - The demo scripts in `examples/` remain demos, not alternate public CLIs.
 

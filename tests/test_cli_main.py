@@ -1454,12 +1454,12 @@ def test_serve_command_starts_uvicorn(monkeypatch: Any) -> None:
     monkeypatch.setattr("uvicorn.run", fake_run)
 
     exit_code = main(
-        ["serve", "--backend", "gpt", "--model", "gpt-4o", "--port", "8086"]
+        ["serve", "--backend", "gpt", "--model", "gpt-4o", "--port", "8084"]
     )
 
     assert exit_code == 0
     assert seen["host"] == "0.0.0.0"
-    assert seen["port"] == 8086
+    assert seen["port"] == 8084
 
 
 def test_serve_app_health_and_judge(monkeypatch: Any) -> None:
@@ -1490,7 +1490,7 @@ def test_serve_app_health_and_judge(monkeypatch: Any) -> None:
         create_app(
             ServerConfig(
                 host="127.0.0.1",
-                port=8086,
+                port=8084,
                 backend="gpt",
                 model="gpt-4o",
             )
@@ -1555,7 +1555,7 @@ def test_serve_app_can_include_trace_and_redact_prompts(monkeypatch: Any) -> Non
         create_app(
             ServerConfig(
                 host="127.0.0.1",
-                port=8086,
+                port=8084,
                 backend="gpt",
                 model="gpt-4o",
                 include_trace=True,
@@ -1584,7 +1584,7 @@ def test_serve_app_rejects_invalid_payload() -> None:
         create_app(
             ServerConfig(
                 host="127.0.0.1",
-                port=8086,
+                port=8084,
                 backend="gpt",
                 model="gpt-4o",
             )
@@ -1626,7 +1626,7 @@ def test_serve_app_accepts_rank_llm_envelope_payload(monkeypatch: Any) -> None:
         create_app(
             ServerConfig(
                 host="127.0.0.1",
-                port=8086,
+                port=8084,
                 backend="gpt",
                 model="gpt-4o",
             )

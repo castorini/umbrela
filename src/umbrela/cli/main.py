@@ -75,7 +75,7 @@ TOP_LEVEL_EXAMPLES = (
         "umbrela evaluate --backend gpt --model gpt-4o "
         "--qrel dl19-passage --result-file run.trec --output json"
     ),
-    "umbrela serve --backend gpt --model gpt-4o --port 8086",
+    "umbrela serve --backend gpt --model gpt-4o --port 8084",
     "umbrela doctor --output json",
 )
 
@@ -362,7 +362,7 @@ def build_parser() -> CLIArgumentParser:
             "Common patterns:\n"
             "  umbrela judge --backend gpt --model gpt-4o "
             '--input-json \'{"query":"q","candidates":["p"]}\' --output json\n'
-            "  umbrela serve --backend gpt --model gpt-4o --port 8086\n"
+            "  umbrela serve --backend gpt --model gpt-4o --port 8084\n"
             "  umbrela evaluate --backend gpt --model gpt-4o "
             "--qrel dl19-passage --result-file run.trec --output json\n"
             "  umbrela prompt show --prompt-type bing --few-shot-count 0\n"
@@ -674,7 +674,7 @@ def build_parser() -> CLIArgumentParser:
         ),
     )
     serve_parser.add_argument("--host", type=str, default="0.0.0.0")
-    serve_parser.add_argument("--port", type=int, default=8086)
+    serve_parser.add_argument("--port", type=int, default=8084)
     serve_parser.add_argument(
         "--backend",
         choices=["gpt", "gemini", "hf", "os"],

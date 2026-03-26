@@ -69,27 +69,27 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
     "serve": {
         "summary": "Start a FastAPI server for direct umbrela judge requests.",
         "examples": [
-            "umbrela serve --backend gpt --model gpt-4o --port 8086",
+            "umbrela serve --backend gpt --model gpt-4o --port 8084",
             (
-                "curl -X POST http://127.0.0.1:8086/v1/judge "
+                "curl -X POST http://127.0.0.1:8084/v1/judge "
                 "-H 'content-type: application/json' "
                 '-d \'{"query":"q","candidates":["p"]}\''
             ),
             (
                 'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
-                "| curl -s -X POST http://127.0.0.1:8086/v1/judge "
+                "| curl -s -X POST http://127.0.0.1:8084/v1/judge "
                 '-H "content-type: application/json" --data-binary @- | jq'
             ),
             (
                 'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
                 "| curl -s -X POST http://127.0.0.1:8082/v1/rerank "
                 '-H "content-type: application/json" --data-binary @- '
-                "| curl -s -X POST http://127.0.0.1:8086/v1/judge "
+                "| curl -s -X POST http://127.0.0.1:8084/v1/judge "
                 '-H "content-type: application/json" --data-binary @- | jq'
             ),
             (
                 "umbrela serve --backend gpt --model gpt-4o "
-                "--include-trace --redact-prompts --port 8086"
+                "--include-trace --redact-prompts --port 8084"
             ),
         ],
         "routes": ["GET /healthz", "POST /v1/judge"],
