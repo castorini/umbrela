@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 
-def _unwrap_castorini_envelope(payload: dict[str, Any]) -> dict[str, Any]:
+def unwrap_direct_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
     schema_version = payload.get("schema_version")
     artifacts = payload.get("artifacts")
     if schema_version != "castorini.cli.v1" or not isinstance(artifacts, list):
@@ -79,7 +79,7 @@ def _normalize_candidate(candidate: Any, index: int) -> dict[str, Any]:
 
 
 def normalize_direct_judge_input(payload: dict[str, Any]) -> dict[str, Any]:
-    payload = _unwrap_castorini_envelope(payload)
+    payload = unwrap_direct_judge_payload(payload)
     candidates = payload.get("candidates")
     if not isinstance(candidates, list) or not candidates:
         raise ValueError("Direct judge input requires a non-empty `candidates` array.")

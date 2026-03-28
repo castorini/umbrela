@@ -1107,6 +1107,7 @@ def test_schema_judge_direct_input_returns_json_envelope(capsys: Any) -> None:
     output = json.loads(capsys.readouterr().out)
     assert output["command"] == "schema"
     assert "query" in output["artifacts"][0]["data"]["properties"]
+    assert "overrides" in output["artifacts"][0]["data"]["properties"]
 
 
 def test_prompt_list_returns_json_catalog(capsys: Any) -> None:
@@ -1592,6 +1593,103 @@ def test_serve_app_rejects_invalid_payload() -> None:
     )
 
     response = client.post("/v1/judge", json={"query": 1, "candidates": []})
+
+    assert response.status_code == 400
+    assert response.json()["status"] == "validation_error"
+
+
+def test_serve_app_applies_request_overrides(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    captured: dict[str, Any] = {}
+
+    def fake_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        del request_dict
+        captured["backend"] = args.backend
+        captured["model"] = args.model
+        captured["reasoning_effort"] = args.reasoning_effort
+        return [
+            {
+                "model": args.model,
+                "query": "q",
+                "passage": "p",
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.api.runtime.run_judge_direct", fake_run_judge_direct)
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8084,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+
+    response = client.post(
+        "/v1/judge",
+        json={
+            "query": "q",
+            "candidates": ["p"],
+            "overrides": {
+                "backend": "gpt",
+                "model": "gpt-4.1-mini",
+                "reasoning_effort": "low",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "backend": "gpt",
+        "model": "gpt-4.1-mini",
+        "reasoning_effort": "low",
+    }
+    assert response.json()["resolved"]["model"] == "gpt-4.1-mini"
+
+
+def test_serve_app_rejects_invalid_override_combinations() -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8084,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+
+    response = client.post(
+        "/v1/judge",
+        json={
+            "query": "q",
+            "candidates": ["p"],
+            "overrides": {
+                "backend": "gemini",
+                "use_openrouter": True,
+            },
+        },
+    )
 
     assert response.status_code == 400
     assert response.json()["status"] == "validation_error"

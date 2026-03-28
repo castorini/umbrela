@@ -76,6 +76,13 @@ COMMAND_DESCRIPTIONS: dict[str, dict[str, Any]] = {
                 '-d \'{"query":"q","candidates":["p"]}\''
             ),
             (
+                "curl -X POST http://127.0.0.1:8084/v1/judge "
+                "-H 'content-type: application/json' "
+                '-d \'{"query":"q","candidates":["p"],'
+                '"overrides":{"backend":"gpt","model":"gpt-4.1-mini",'
+                '"reasoning_effort":"low"}}\''
+            ),
+            (
                 'curl -s "http://127.0.0.1:8081/v1/msmarco-v1-passage/search?query=q" '
                 "| curl -s -X POST http://127.0.0.1:8084/v1/judge "
                 '-H "content-type: application/json" --data-binary @- | jq'
@@ -202,6 +209,31 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                             },
                         },
                     ]
+                },
+            },
+            "overrides": {
+                "type": "object",
+                "properties": {
+                    "backend": {
+                        "type": "string",
+                        "enum": ["gpt", "gemini", "hf", "os"],
+                    },
+                    "model": {"type": "string"},
+                    "prompt_file": {"type": "string"},
+                    "prompt_type": {"type": "string"},
+                    "few_shot_count": {"type": "integer"},
+                    "execution_mode": {"type": "string", "enum": ["sync", "async"]},
+                    "max_concurrency": {"type": "integer"},
+                    "use_azure_openai": {"type": "boolean"},
+                    "use_openrouter": {"type": "boolean"},
+                    "reasoning_effort": {
+                        "type": "string",
+                        "enum": ["none", "minimal", "low", "medium", "high", "xhigh"],
+                    },
+                    "device": {"type": "string"},
+                    "include_reasoning": {"type": "boolean"},
+                    "include_trace": {"type": "boolean"},
+                    "redact_prompts": {"type": "boolean"},
                 },
             },
         },

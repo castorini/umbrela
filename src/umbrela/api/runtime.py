@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from umbrela.cli.adapters import make_data_artifact, serialize_direct_judgment
 from umbrela.cli.introspection import validate_judge_payload
-from umbrela.cli.normalize import normalize_direct_judge_input
+from umbrela.cli.normalize import (
+    normalize_direct_judge_input,
+    unwrap_direct_judge_payload,
+)
 from umbrela.cli.operations import run_judge_direct
 from umbrela.cli.responses import CommandResponse
 
@@ -33,6 +36,24 @@ class ServerConfig:
     quiet: bool = False
 
 
+_OVERRIDABLE_FIELDS = {
+    "backend",
+    "model",
+    "prompt_file",
+    "prompt_type",
+    "few_shot_count",
+    "execution_mode",
+    "max_concurrency",
+    "use_azure_openai",
+    "use_openrouter",
+    "reasoning_effort",
+    "device",
+    "include_reasoning",
+    "include_trace",
+    "redact_prompts",
+}
+
+
 def _base_args(config: ServerConfig) -> argparse.Namespace:
     return argparse.Namespace(
         command="judge",
@@ -55,6 +76,54 @@ def _base_args(config: ServerConfig) -> argparse.Namespace:
         qrel="dl19-passage",
         output="json",
     )
+
+
+def _extract_override_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    override_payload = payload.get("overrides", {})
+    if not isinstance(override_payload, dict):
+        raise ValueError("overrides must be an object when provided")
+    unwrapped_payload = unwrap_direct_judge_payload(payload)
+    unwrapped_override_payload = unwrapped_payload.get("overrides", {})
+    if not isinstance(unwrapped_override_payload, dict):
+        raise ValueError("overrides must be an object when provided")
+    combined = dict(override_payload)
+    combined.update(unwrapped_override_payload)
+    unknown_keys = sorted(set(combined) - _OVERRIDABLE_FIELDS)
+    if unknown_keys:
+        raise ValueError(
+            "unsupported judge override field(s): " + ", ".join(unknown_keys)
+        )
+    return combined
+
+
+def _merge_config_with_payload(
+    payload: dict[str, Any],
+    *,
+    config: ServerConfig,
+) -> ServerConfig:
+    overrides = _extract_override_payload(payload)
+    if not overrides:
+        return config
+    effective_values = asdict(config)
+    effective_values.update(overrides)
+    effective_config = replace(config, **effective_values)
+    if effective_config.backend == "ensemble":
+        raise ValueError("ensemble backend is not supported by the judge serve API")
+    if effective_config.use_azure_openai and effective_config.use_openrouter:
+        raise ValueError(
+            "use_azure_openai and use_openrouter cannot both be true in overrides"
+        )
+    if effective_config.backend != "gpt" and (
+        effective_config.use_azure_openai
+        or effective_config.use_openrouter
+        or effective_config.reasoning_effort is not None
+    ):
+        raise ValueError(
+            "provider overrides and reasoning_effort are only supported for the gpt backend"
+        )
+    if effective_config.backend not in {"hf", "os"} and "device" in overrides:
+        raise ValueError("device override is only supported for hf and os backends")
+    return effective_config
 
 
 def execute_direct_judge(
@@ -94,7 +163,8 @@ def execute_direct_judge(
 def run_judge_request(
     payload: dict[str, Any], *, config: ServerConfig
 ) -> CommandResponse:
-    return execute_direct_judge(payload, args=_base_args(config))
+    effective_config = _merge_config_with_payload(payload, config=config)
+    return execute_direct_judge(payload, args=_base_args(effective_config))
 
 
 def validation_error_response(message: str) -> CommandResponse:
