@@ -5,7 +5,7 @@ repos:
     hooks:
       - id: umbrela-quality-gate-pre-commit
         name: umbrela quality gate (pre-commit)
-        entry: bash scripts/quality_gate.sh commit
+        entry: bash scripts/quality_gate.sh push
         language: system
         pass_filenames: false
         stages: [pre-commit]

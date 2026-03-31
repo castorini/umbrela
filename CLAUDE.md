@@ -25,7 +25,7 @@ Additional setup notes:
 - The repository already pins the interpreter via `.python-version`, so `uv` will use that version automatically and download it if needed.
 - Use `uv sync --group dev --extra cloud`, `uv sync --group dev --extra hf`, `uv sync --group dev --extra fastchat`, or `uv sync --group dev --extra all` when you need contributor tooling plus a specific backend stack.
 - If you prefer not to activate the virtual environment, run commands through `uv run`.
-- Run `bash scripts/quality_gate.sh commit` before committing local changes when you want to execute the full contributor quality gate manually. Use `bash scripts/quality_gate.sh push` for the non-mutating equivalent. The gate assumes `uv sync --group dev --extra cloud` has been run so MyPy can see the optional cloud backend imports.
+- Run `bash scripts/quality_gate.sh push` before committing local changes when you want to execute the full contributor quality gate manually. Use `bash scripts/quality_gate.sh commit` only when you specifically want Ruff autofixes before re-running the checks. The gate assumes `uv sync --group dev --extra cloud` has been run so MyPy can see the optional cloud backend imports.
 - Add a repo-local `.env` with only the variables needed for the backend you plan to run (see Environment Variables below).
 - Keep release-note updates in `docs/release-notes/` for user-visible changes.
 

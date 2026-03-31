@@ -46,7 +46,7 @@ bash scripts/quality_gate.sh commit
 bash scripts/quality_gate.sh push
 ```
 
-The repo-local quality gate script is the canonical lint, format, test, and type-check entrypoint for this repository. The ordered gate is Ruff, then core tests, then integration tests, then MyPy. Pre-commit runs the auto-fixing commit mode, and pre-push runs the non-mutating push mode.
+The repo-local quality gate script is the canonical lint, format, test, and type-check entrypoint for this repository. The ordered gate is Ruff, then core tests, then integration tests, then MyPy. The installed Git hooks both run the non-mutating push-mode gate so commits and pushes see the same validation order. Use `bash scripts/quality_gate.sh commit` manually if you want Ruff autofixes before re-running the checks.
 
 ## Testing Expectations
 
