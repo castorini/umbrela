@@ -12,7 +12,8 @@ Reference the GitHub issue this pull request addresses. If none exists, write `N
 
 ## Validation
 
-- [ ] `uv run pre-commit run --all-files`
+- [ ] `bash scripts/quality_gate.sh commit`
+- [ ] `bash scripts/quality_gate.sh push`
 - [ ] `uv run pytest -q`
 - [ ] Not run, with justification explained below
 

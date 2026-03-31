@@ -60,7 +60,7 @@ If you prefer not to activate the virtual environment, run commands through `uv 
 ```bash
 uv run python examples/judge_demo.py --help
 uv run umbrela --help
-uv run pre-commit run --all-files
+bash scripts/quality_gate.sh commit
 ```
 
 The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will also select that version automatically when possible.

@@ -135,6 +135,8 @@ module = [
     "datasets",
     "fastchat",
     "fastchat.*",
+    "openai",
+    "openai.*",
     "pyserini",
     "pyserini.*",
     "retry",

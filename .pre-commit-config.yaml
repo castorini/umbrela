@@ -1,53 +1,17 @@
 default_install_hook_types: [pre-commit, pre-push]
 
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.0
-    hooks:
-      - id: ruff-check
-        types_or: [python, pyi]
-        args: [--fix]
-        stages: [pre-commit]
-      - id: ruff-format
-        types_or: [python, pyi]
-        stages: [pre-commit]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
-    hooks:
-      - id: mypy
-        pass_filenames: false
-        args: [src, tests]
-        additional_dependencies:
-          - fastapi
-          - matplotlib
-          - openai
-          - pytest
-          - python-dotenv
-          - retry
-          - scikit-learn
-          - shtab
-          - types-PyYAML
-          - types-tqdm
-          - typing-extensions
-          - uvicorn
-        stages: [pre-commit]
   - repo: local
     hooks:
-      - id: ruff-check-push
-        name: ruff-check (push)
-        entry: uv run ruff check .
+      - id: umbrela-quality-gate-pre-commit
+        name: umbrela quality gate (pre-commit)
+        entry: bash scripts/quality_gate.sh commit
         language: system
         pass_filenames: false
-        stages: [pre-push]
-      - id: ruff-format-check-push
-        name: ruff-format (push)
-        entry: uv run ruff format --check .
-        language: system
-        pass_filenames: false
-        stages: [pre-push]
-      - id: mypy-push
-        name: mypy (push)
-        entry: uv run mypy src tests
+        stages: [pre-commit]
+      - id: umbrela-quality-gate-pre-push
+        name: umbrela quality gate (pre-push)
+        entry: bash scripts/quality_gate.sh push
         language: system
         pass_filenames: false
         stages: [pre-push]

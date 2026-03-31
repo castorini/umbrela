@@ -17,7 +17,6 @@ uv python install 3.11
 uv venv --python 3.11
 source .venv/bin/activate
 uv sync --group dev
-pre-commit install
 ```
 
 Install backend extras only when you need them:
@@ -30,19 +29,18 @@ uv sync --group dev --extra all
 ```
 
 If you prefer not to activate the virtual environment, run commands through `uv run`.
+Install the pre-commit and pre-push hooks with `pre-commit install --hook-type pre-commit --hook-type pre-push` if you want Git to invoke the local quality gate automatically.
 
 ## Local Quality Gate
 
 Run these commands before opening a pull request:
 
 ```bash
-uv run pre-commit run --all-files
-uv sync --group dev --extra cloud
-uv run pytest -q -m core tests
-uv run pytest -q -m integration tests
+bash scripts/quality_gate.sh commit
+bash scripts/quality_gate.sh push
 ```
 
-The pre-commit hooks are the canonical lint, format, and type-check entrypoint for this repository. They currently run Ruff and MyPy.
+The repo-local quality gate script is the canonical lint, format, test, and type-check entrypoint for this repository. The ordered gate is Ruff, then core tests, then integration tests, then MyPy. Pre-commit runs the auto-fixing commit mode, and pre-push runs the non-mutating push mode.
 
 ## Testing Expectations
 

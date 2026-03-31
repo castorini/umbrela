@@ -25,7 +25,7 @@ Additional setup notes:
 - The repository already pins the interpreter via `.python-version`, so `uv` will use that version automatically and download it if needed.
 - Use `uv sync --group dev --extra cloud`, `uv sync --group dev --extra hf`, `uv sync --group dev --extra fastchat`, or `uv sync --group dev --extra all` when you need contributor tooling plus a specific backend stack.
 - If you prefer not to activate the virtual environment, run commands through `uv run`.
-- Run `uv run pre-commit run --all-files` before committing local changes when you want to execute the full contributor quality gate manually.
+- Run `bash scripts/quality_gate.sh commit` before committing local changes when you want to execute the full contributor quality gate manually. Use `bash scripts/quality_gate.sh push` for the non-mutating equivalent.
 - Add a repo-local `.env` with only the variables needed for the backend you plan to run (see Environment Variables below).
 - Keep release-note updates in `docs/release-notes/` for user-visible changes.
 
@@ -78,6 +78,7 @@ few-shot.
   - `core`: `uv sync --group dev --extra cloud && uv run pytest -q -m core tests`
   - `integration`: `uv sync --group dev --extra cloud && uv run pytest -q -m integration tests`
   - `live`: opt-in smoke tests such as `UMBRELA_LIVE_OPENAI_SMOKE=1 uv run pytest -q tests/test_live_openai_smoke.py`
+- The quality gate order is Ruff, then core tests, then integration tests, then MyPy. The local hooks and `scripts/quality_gate.sh` script enforce that order in both pre-commit and pre-push stages.
 - Keep `core` and `integration` coverage offline and deterministic.
 - Optional dependency stacks (`cloud`, `hf`, `pyserini`) should remain smoke-testable in CI without live provider calls.
 - Apply the shared pytest markers `core`, `integration`, and `live` at the module level when adding or moving tests.
