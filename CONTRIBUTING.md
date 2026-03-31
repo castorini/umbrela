@@ -19,6 +19,12 @@ source .venv/bin/activate
 uv sync --group dev
 ```
 
+For the full quality gate, also sync the cloud extra so MyPy can resolve the optional backend imports used by the gate:
+
+```bash
+uv sync --group dev --extra cloud
+```
+
 Install backend extras only when you need them:
 
 ```bash

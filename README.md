@@ -55,6 +55,12 @@ source .venv/bin/activate
 uv sync --group dev
 ```
 
+For the full local quality gate and cloud-backend type coverage, also sync the `cloud` extra:
+
+```bash
+uv sync --group dev --extra cloud
+```
+
 If you prefer not to activate the virtual environment, run commands through `uv run`, for example:
 
 ```bash
