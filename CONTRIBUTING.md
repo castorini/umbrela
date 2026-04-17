@@ -19,6 +19,8 @@ source .venv/bin/activate
 uv sync --group dev
 ```
 
+The repository pins Python 3.11 in `.python-version`, so `uv` will select that interpreter automatically when possible. `uv sync --group dev` installs the base project plus the default `dev` dependency group; optional extras remain opt-in even though they are represented in `uv.lock`.
+
 For the full quality gate, also sync the cloud extra so MyPy can resolve the optional backend imports used by the gate:
 
 ```bash
@@ -34,7 +36,7 @@ uv sync --group dev --extra fastchat
 uv sync --group dev --extra all
 ```
 
-If you prefer not to activate the virtual environment, run commands through `uv run`.
+If you prefer not to activate the virtual environment, prefer running commands through `uv run`.
 Install the pre-commit and pre-push hooks with `pre-commit install --hook-type pre-commit --hook-type pre-push` if you want Git to invoke the local quality gate automatically.
 
 ## Local Quality Gate
@@ -46,7 +48,7 @@ bash scripts/quality_gate.sh commit
 bash scripts/quality_gate.sh push
 ```
 
-The repo-local quality gate script is the canonical lint, format, test, and type-check entrypoint for this repository. The ordered gate is Ruff, then core tests, then integration tests, then MyPy. The installed Git hooks both run the non-mutating push-mode gate so commits and pushes see the same validation order. Use `bash scripts/quality_gate.sh commit` manually if you want Ruff autofixes before re-running the checks.
+The repo-local quality gate script is the canonical lint, format, test, and type-check entrypoint for this repository. Both gate modes start with `uv lock --check`, then run Ruff, core tests, integration tests, and MyPy in that order. The installed Git hooks both run the non-mutating push-mode gate so commits and pushes see the same validation order. Use `bash scripts/quality_gate.sh commit` manually if you want Ruff autofixes before re-running the checks.
 
 ## Testing Expectations
 

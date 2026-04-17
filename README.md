@@ -44,7 +44,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Development installation
 
-For development or the latest features, install from source with a repo-local virtual environment:
+For development or the latest features, install from source with a repo-local virtual environment. The repository pins Python 3.11 in `.python-version`, so `uv` will select that interpreter automatically when possible:
 
 ```bash
 git clone https://github.com/castorini/umbrela.git
@@ -55,21 +55,21 @@ source .venv/bin/activate
 uv sync --group dev
 ```
 
+`uv sync --group dev` installs the base project plus the default `dev` dependency group. Optional backend extras are resolved into `uv.lock`, but they are not installed unless you request them explicitly.
+
 For the full local quality gate and cloud-backend type coverage, also sync the `cloud` extra:
 
 ```bash
 uv sync --group dev --extra cloud
 ```
 
-If you prefer not to activate the virtual environment, run commands through `uv run`, for example:
+If you prefer not to activate the virtual environment, use `uv run` as the preferred command path, for example:
 
 ```bash
 uv run python examples/judge_demo.py --help
 uv run umbrela --help
-bash scripts/quality_gate.sh push
+uv run bash scripts/quality_gate.sh push
 ```
-
-The repository pins the default interpreter to Python 3.11 with `.python-version`, so `uv` will also select that version automatically when possible.
 
 Install only the backends you need:
 
@@ -89,6 +89,8 @@ uv sync --group dev --extra pyserini
 # Everything
 uv sync --group dev --extra all
 ```
+
+The local quality gate expects `uv sync --group dev --extra cloud` so MyPy can resolve the optional cloud backend imports, and it now starts with `uv lock --check` before Ruff, tests, and MyPy.
 
 ### Environment variables
 

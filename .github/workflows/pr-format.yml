@@ -17,6 +17,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev
       - name: Run Ruff
@@ -32,6 +34,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Run core tests
@@ -45,6 +49,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Run offline backend contract regressions
@@ -58,6 +64,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Run MyPy
@@ -71,6 +79,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra cloud
       - name: Smoke import cloud backends
@@ -89,6 +99,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra hf
       - name: Smoke import HF backend
@@ -106,6 +118,8 @@ jobs:
         with:
           python-version: "3.11"
           enable-cache: true
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install dependencies
         run: uv sync --group dev --extra pyserini
       - name: Smoke import pyserini-backed utilities

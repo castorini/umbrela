@@ -11,6 +11,7 @@ Initial release-note scaffold for the packaged CLI and prompt-template workflow.
 - Direct `umbrela judge --output json` and `POST /v1/judge` responses are now compact by default. The default judgment records include `query`, `passage`, and `judgment`, with `reasoning` remaining opt-in via `--include-reasoning`. The older verbose fields `prediction`, `result_status`, and `prompt` are now exposed only through the new `--include-trace` flag, with `--redact-prompts` available to suppress raw prompt text.
 - YAML-backed prompt templates with the legacy flat-prompt rendering contract preserved.
 - Offline-first contributor workflow built around `uv`.
+- Explicit `uv lock --check` enforcement in the local quality gate and GitHub Actions so committed `uv.lock` stays aligned with contributor and CI environments.
 
 ## Migration Notes
 

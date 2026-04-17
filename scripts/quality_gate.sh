@@ -15,6 +15,7 @@ run_step() {
 }
 
 run_commit_gate() {
+  run_step "uv lock --check" uv lock --check
   run_step "ruff check --fix" uv run ruff check --fix .
   run_step "ruff format" uv run ruff format .
   run_step "core tests" uv run pytest -q -m core tests
@@ -23,6 +24,7 @@ run_commit_gate() {
 }
 
 run_push_gate() {
+  run_step "uv lock --check" uv lock --check
   run_step "ruff check" uv run ruff check .
   run_step "ruff format --check" uv run ruff format --check .
   run_step "core tests" uv run pytest -q -m core tests
