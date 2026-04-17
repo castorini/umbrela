@@ -5,7 +5,7 @@ import random
 import re
 import subprocess
 from functools import lru_cache
-from typing import Any, TypeAlias, cast
+from typing import Any, cast
 
 try:
     from pyserini.index.lucene import LuceneIndexReader
@@ -18,9 +18,9 @@ except Exception as exc:
     get_topics = None
     _PYSERINI_IMPORT_ERROR = exc
 
-QrelKey: TypeAlias = int | str
-QrelsData: TypeAlias = dict[QrelKey, dict[QrelKey, str]]
-QueryMappings: TypeAlias = dict[int, dict[str, str]]
+type QrelKey = int | str
+type QrelsData = dict[QrelKey, dict[QrelKey, str]]
+type QueryMappings = dict[int, dict[str, str]]
 
 
 def _require_pyserini(feature: str, needs_java: bool = False) -> None:

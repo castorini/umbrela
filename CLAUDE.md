@@ -16,12 +16,12 @@ Additional setup notes:
   `pyserini`-dependent workflows. Plain direct judging does not require Java.
 - If `uv` is not already on `PATH` after installation, add it with `export PATH="$HOME/.local/bin:$PATH"` instead of sourcing shell-specific env scripts.
 - Recommended development bootstrap:
-  - `uv python install 3.11`
-  - `uv venv --python 3.11`
+  - `uv python install 3.12`
+  - `uv venv --python 3.12`
   - `source .venv/bin/activate`
   - `uv sync --group dev`
 - `uv venv` and `uv sync` create and manage the repo-local virtual environment at `.venv`.
-- The published package supports Python 3.11 and newer via `pyproject.toml`.
+- The published package supports Python 3.12 and newer via `pyproject.toml`.
 - The repository already pins the interpreter via `.python-version`, so `uv` will use that version automatically and download it if needed.
 - Use `uv sync --group dev --extra cloud`, `uv sync --group dev --extra hf`, `uv sync --group dev --extra fastchat`, or `uv sync --group dev --extra all` when you need contributor tooling plus a specific backend stack.
 - If you prefer not to activate the virtual environment, run commands through `uv run`.

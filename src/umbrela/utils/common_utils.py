@@ -4,14 +4,13 @@ import re
 import threading
 from collections.abc import Coroutine, Sequence
 from pathlib import Path
-from typing import Any, TypeAlias, TypeVar, cast
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, cohen_kappa_score, confusion_matrix
 
-T = TypeVar("T")
-QueryPassage: TypeAlias = list[tuple[str, str]]
-Judgment: TypeAlias = dict[str, Any]
+type QueryPassage = list[tuple[str, str]]
+type Judgment = dict[str, Any]
 
 
 def preprocess_request_dict(request_dict: dict[str, Any]) -> QueryPassage:
@@ -31,7 +30,7 @@ def prepare_request_inputs(
     return cast(QueryPassage, request_dict)
 
 
-def run_async_blocking(coro: Coroutine[Any, Any, T]) -> T:
+def run_async_blocking[T](coro: Coroutine[Any, Any, T]) -> T:
     try:
         asyncio.get_running_loop()
     except RuntimeError:

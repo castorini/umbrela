@@ -21,7 +21,7 @@ The package is built for information retrieval evaluation workflows: you can run
 
 `umbrela` uses [`uv`](https://docs.astral.sh/uv/) for Python environment management, dependency resolution, and command execution.
 
-It is built on Python 3.11 (other versions might work, but YMMV).
+It is built on Python 3.12.
 
 ### Install `uv`
 
@@ -44,13 +44,13 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Development installation
 
-For development or the latest features, install from source with a repo-local virtual environment. The repository pins Python 3.11 in `.python-version`, so `uv` will select that interpreter automatically when possible:
+For development or the latest features, install from source with a repo-local virtual environment. The repository pins Python 3.12 in `.python-version`, so `uv` will select that interpreter automatically when possible:
 
 ```bash
 git clone https://github.com/castorini/umbrela.git
 cd umbrela
-uv python install 3.11
-uv venv --python 3.11
+uv python install 3.12
+uv venv --python 3.12
 source .venv/bin/activate
 uv sync --group dev
 ```

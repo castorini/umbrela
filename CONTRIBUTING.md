@@ -13,13 +13,13 @@ Thank you for contributing to umBRELA. This repository packages large-language-m
 umBRELA uses `uv` and the `dev` dependency group from `pyproject.toml`.
 
 ```bash
-uv python install 3.11
-uv venv --python 3.11
+uv python install 3.12
+uv venv --python 3.12
 source .venv/bin/activate
 uv sync --group dev
 ```
 
-The repository pins Python 3.11 in `.python-version`, so `uv` will select that interpreter automatically when possible. `uv sync --group dev` installs the base project plus the default `dev` dependency group; optional extras remain opt-in even though they are represented in `uv.lock`.
+The repository pins Python 3.12 in `.python-version`, so `uv` will select that interpreter automatically when possible. `uv sync --group dev` installs the base project plus the default `dev` dependency group; optional extras remain opt-in even though they are represented in `uv.lock`.
 
 For the full quality gate, also sync the cloud extra so MyPy can resolve the optional backend imports used by the gate:
 

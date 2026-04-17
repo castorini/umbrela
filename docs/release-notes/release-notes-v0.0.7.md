@@ -4,6 +4,7 @@ Initial release-note scaffold for the packaged CLI and prompt-template workflow.
 
 ## Included In This Baseline
 
+- The supported interpreter floor is now Python 3.12 across package metadata, `.python-version`, contributor setup docs, and GitHub Actions validation.
 - Packaged `umbrela` CLI for direct judging, qrel-backed evaluation, schema inspection, validation, doctor, and view commands.
 - FastAPI `umbrela serve` command exposing `GET /healthz` and `POST /v1/judge` on port `8084` by default.
 - Direct `judge` input now also accepts Anserini REST candidates where `candidates[].doc` is a plain string, so Anserini search results can be piped directly into `POST /v1/judge` without a `jq` reshape step.
@@ -23,3 +24,4 @@ Document a migration note whenever a change affects:
 - parsing heuristics or judgment extraction
 - backend defaults or provider selection behavior
 - qrel, evaluation, or artifact output formats
+- supported Python version or default contributor runtime
