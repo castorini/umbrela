@@ -62,12 +62,3 @@ class OSLLMJudge(LLMJudge):
                     ).strip()
                 )
         return outputs
-
-    def judge(
-        self,
-        request_dict: dict[str, Any] | common_utils.QueryPassage,
-        max_new_tokens: int = 100,
-        preprocess: bool = True,
-    ) -> list[common_utils.Judgment]:
-        outputs = self.predict_with_llm(request_dict, max_new_tokens, preprocess)
-        return self.prepare_judgments(outputs)
