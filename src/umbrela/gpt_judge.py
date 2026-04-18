@@ -7,6 +7,8 @@ from umbrela.utils import common_utils
 
 DEFAULT_MAX_NEW_TOKENS = 100
 DEFAULT_REASONING_MAX_NEW_TOKENS = 4096
+REASONING_MODEL_MARKERS = ("o1", "o3", "o4", "gpt-5")
+SYSTEM_TO_USER_MODEL_MARKERS = ("o1", "o3", "o4")
 
 
 class GPTJudge(LLMJudge):
@@ -31,13 +33,11 @@ class GPTJudge(LLMJudge):
             use_openrouter=use_openrouter,
         )
 
+    def _model_name_contains_any(self, markers: tuple[str, ...]) -> bool:
+        return any(marker in self.model_name for marker in markers)
+
     def _uses_reasoning_style_api(self) -> bool:
-        return (
-            "o1" in self.model_name
-            or "o3" in self.model_name
-            or "o4" in self.model_name
-            or "gpt-5" in self.model_name
-        )
+        return self._model_name_contains_any(REASONING_MODEL_MARKERS)
 
     def _resolve_max_new_tokens(self, max_new_tokens: int) -> int:
         if (
@@ -46,6 +46,72 @@ class GPTJudge(LLMJudge):
         ):
             return DEFAULT_REASONING_MAX_NEW_TOKENS
         return max_new_tokens
+
+    def _resolve_provider_env(self) -> dict[str, str | None]:
+        openai_api_key = os.getenv("OPENAI_API_KEY") or None
+        return {
+            "openai_api_key": openai_api_key,
+            "openrouter_api_key": os.getenv("OPENROUTER_API_KEY") or None,
+            "azure_api_key": os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key,
+            "api_version": os.getenv("AZURE_OPENAI_API_VERSION"),
+            "azure_endpoint": os.getenv("AZURE_OPENAI_API_BASE"),
+        }
+
+    def _create_azure_client(
+        self,
+        *,
+        AsyncAzureOpenAI: Any,
+        azure_api_key: str | None,
+        azure_endpoint: str | None,
+        api_version: str | None,
+    ) -> None:
+        if not all([azure_api_key, azure_endpoint, api_version]):
+            raise ValueError(
+                "Azure OpenAI requested but one or more required environment "
+                "variables are missing: `AZURE_OPENAI_API_BASE`, "
+                "`AZURE_OPENAI_API_VERSION`, and "
+                "`AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY` as fallback)."
+            )
+        assert azure_endpoint is not None
+        self.async_client = AsyncAzureOpenAI(
+            api_key=azure_api_key,
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+        )
+        self.use_azure_ai = True
+        self.use_openrouter = False
+        self.engine = os.environ["DEPLOYMENT_NAME"]
+
+    def _create_standard_client(
+        self,
+        *,
+        AsyncOpenAI: Any,
+        openai_api_key: str | None,
+        openrouter_api_key: str | None,
+        use_openrouter: bool,
+    ) -> None:
+        provider_api_key = openai_api_key
+        client_kwargs: dict[str, Any] = {}
+
+        if use_openrouter:
+            if openrouter_api_key is None:
+                raise KeyError("OPENROUTER_API_KEY")
+            provider_api_key = openrouter_api_key
+            client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
+        elif provider_api_key is None and openrouter_api_key is not None:
+            provider_api_key = openrouter_api_key
+            client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
+            self.use_openrouter = True
+
+        if provider_api_key is None:
+            raise KeyError("OPENAI_API_KEY or OPENROUTER_API_KEY")
+
+        self.async_client = AsyncOpenAI(
+            api_key=provider_api_key,
+            **client_kwargs,
+        )
+        self.engine = self.model_name
+        self.use_azure_ai = False
 
     def create_openai_client(
         self, use_azure_openai: bool = False, use_openrouter: bool = False
@@ -59,13 +125,8 @@ class GPTJudge(LLMJudge):
                 "`uv sync --extra cloud`."
             ) from exc
 
-        openai_api_key = os.getenv("OPENAI_API_KEY") or None
-        openrouter_api_key = os.getenv("OPENROUTER_API_KEY") or None
-        azure_api_key = os.getenv("AZURE_OPENAI_API_KEY") or openai_api_key
-        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-        azure_endpoint = os.getenv("AZURE_OPENAI_API_BASE")
+        provider_env = self._resolve_provider_env()
         self._bad_request_error = openai.BadRequestError
-        self.async_client: Any
 
         if use_azure_openai and use_openrouter:
             raise ValueError(
@@ -74,60 +135,39 @@ class GPTJudge(LLMJudge):
             )
 
         if use_azure_openai:
-            if not all([azure_api_key, azure_endpoint, api_version]):
-                raise ValueError(
-                    "Azure OpenAI requested but one or more required environment "
-                    "variables are missing: `AZURE_OPENAI_API_BASE`, "
-                    "`AZURE_OPENAI_API_VERSION`, and "
-                    "`AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY` as fallback)."
-                )
-            assert azure_endpoint is not None
-            self.async_client = AsyncAzureOpenAI(
-                api_key=azure_api_key,
-                api_version=api_version,
-                azure_endpoint=azure_endpoint,
+            self._create_azure_client(
+                AsyncAzureOpenAI=AsyncAzureOpenAI,
+                azure_api_key=provider_env["azure_api_key"],
+                azure_endpoint=provider_env["azure_endpoint"],
+                api_version=provider_env["api_version"],
             )
-            self.use_azure_ai = True
-            self.use_openrouter = False
-            self.engine = os.environ["DEPLOYMENT_NAME"]
         else:
-            provider_api_key = openai_api_key
-            client_kwargs: dict[str, Any] = {}
-
-            if use_openrouter:
-                if openrouter_api_key is None:
-                    raise KeyError("OPENROUTER_API_KEY")
-                provider_api_key = openrouter_api_key
-                client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
-            elif provider_api_key is None and openrouter_api_key is not None:
-                provider_api_key = openrouter_api_key
-                client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
-                self.use_openrouter = True
-
-            if provider_api_key is None:
-                raise KeyError("OPENAI_API_KEY or OPENROUTER_API_KEY")
-
-            self.async_client = AsyncOpenAI(
-                api_key=provider_api_key,
-                **client_kwargs,
+            self._create_standard_client(
+                AsyncOpenAI=AsyncOpenAI,
+                openai_api_key=provider_env["openai_api_key"],
+                openrouter_api_key=provider_env["openrouter_api_key"],
+                use_openrouter=use_openrouter,
             )
-            self.engine = self.model_name
-            self.use_azure_ai = False
 
     def _normalize_messages(
         self, messages: list[dict[str, str]]
     ) -> list[dict[str, str]]:
-        if (
-            "o1" in self.model_name
-            or "o3" in self.model_name
-            or "o4" in self.model_name
-        ):
+        if self._model_name_contains_any(SYSTEM_TO_USER_MODEL_MARKERS):
             normalized_messages = [message.copy() for message in messages[1:]]
             normalized_messages[0]["content"] = (
                 messages[0]["content"] + "\n" + messages[1]["content"]
             )
             return normalized_messages
         return messages
+
+    def _stringify_content_parts(self, values: list[Any] | None) -> list[str]:
+        parts: list[str] = []
+        for value in values or []:
+            if isinstance(value, str) and value:
+                parts.append(value)
+            elif hasattr(value, "text") and value.text:
+                parts.append(str(value.text))
+        return parts
 
     def _build_completion_params(
         self, messages: list[dict[str, str]], max_new_tokens: int
@@ -204,23 +244,14 @@ class GPTJudge(LLMJudge):
                 direct_reasoning_content = getattr(item, "reasoning_content", None)
                 if direct_reasoning_content:
                     direct_reasoning_parts.append(str(direct_reasoning_content))
-                content_items = getattr(item, "content", None) or []
                 direct_reasoning_parts.extend(
-                    [
-                        str(content) if isinstance(content, str) else str(content.text)
-                        for content in content_items
-                        if (isinstance(content, str) and content)
-                        or (hasattr(content, "text") and content.text)
-                    ]
+                    self._stringify_content_parts(getattr(item, "content", None))
                 )
                 summaries = getattr(item, "summary", None)
                 summary_reasoning = None
                 if summaries:
                     summary_reasoning = "\n".join(
-                        str(summary) if isinstance(summary, str) else summary.text
-                        for summary in summaries
-                        if (isinstance(summary, str) and summary)
-                        or (hasattr(summary, "text") and summary.text)
+                        self._stringify_content_parts(summaries)
                     )
                 direct_reasoning_text = (
                     "\n".join(direct_reasoning_parts)
