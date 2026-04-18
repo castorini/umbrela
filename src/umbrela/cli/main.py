@@ -19,12 +19,12 @@ from .commands.serve import run_serve_command
 from .commands.validate import run_validate_command
 from .commands.view import run_view_command
 from .config import load_config
+from .contract_data import COMMAND_DESCRIPTIONS, SCHEMAS
 from .errors import (
     INVALID_ARGS_EXIT_CODE,
     RUNTIME_EXIT_CODE,
     CLIError,
 )
-from .introspection import COMMAND_DESCRIPTIONS, SCHEMAS
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .prompt_view import (
     render_prompt_catalog_text,

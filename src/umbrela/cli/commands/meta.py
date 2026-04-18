@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from umbrela.cli.adapters import make_data_artifact
-from umbrela.cli.introspection import COMMAND_DESCRIPTIONS, SCHEMAS, doctor_report
+from umbrela.cli.contract_data import COMMAND_DESCRIPTIONS, SCHEMAS
+from umbrela.cli.introspection import doctor_report
 from umbrela.cli.responses import CommandResponse
 
 
