@@ -4,6 +4,7 @@ import unittest
 
 import pytest
 
+from umbrela.cli.prompt_view import build_rendered_prompt_view
 from umbrela.prompts import get_prompt_template, render_prompts
 
 pytestmark = pytest.mark.core
@@ -307,5 +308,33 @@ class PromptTemplateTests(unittest.TestCase):
                 "system_message": "system text",
                 "prefix_user": "Examples: {examples}\nQuery: {query}\nPassage: {passage}",
                 "placeholders": ["examples", "query", "passage"],
+            },
+        )
+
+    def test_rendered_prompt_view_preserves_selector_metadata(self) -> None:
+        template = get_prompt_template(
+            prompt_file=None,
+            prompt_type="basic",
+            few_shot_count=2,
+        )
+
+        view = build_rendered_prompt_view(
+            template,
+            prompt_file=None,
+            prompt_type="basic",
+            few_shot_count=2,
+            candidate_index=0,
+            query="sample query",
+            passage="sample passage",
+            examples="demo examples",
+        )
+
+        self.assertEqual(
+            view["selector"],
+            {
+                "prompt_file": None,
+                "prompt_type": "basic",
+                "few_shot_count": 2,
+                "candidate_index": 0,
             },
         )

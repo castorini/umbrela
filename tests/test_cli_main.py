@@ -603,6 +603,109 @@ def test_direct_judge_via_stdin(monkeypatch: Any, capsys: Any) -> None:
     assert output["artifacts"][0]["data"][0]["judgment"] == 1
 
 
+def test_cli_and_serve_normalize_direct_payloads_identically(monkeypatch: Any) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from umbrela.api.app import create_app
+    from umbrela.api.runtime import ServerConfig
+
+    payload = {
+        "schema_version": "castorini.cli.v1",
+        "repo": "rank_llm",
+        "command": "rerank",
+        "artifacts": [
+            {
+                "name": "rerank-results",
+                "kind": "data",
+                "value": [
+                    {
+                        "query": {"text": "q", "qid": ""},
+                        "candidates": [
+                            {
+                                "docid": "d0",
+                                "score": 1.0,
+                                "doc": {"contents": "p"},
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    seen: dict[str, Any] = {}
+
+    def fake_cli_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        seen["cli_request"] = request_dict
+        del args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    def fake_api_run_judge_direct(
+        request_dict: dict[str, Any], args: Any
+    ) -> list[dict[str, Any]]:
+        seen["api_request"] = request_dict
+        del args
+        return [
+            {
+                "model": "gpt-4o",
+                "query": request_dict["query"]["text"],
+                "passage": request_dict["candidates"][0]["doc"]["segment"],
+                "prompt": "prompt",
+                "prediction": "3",
+                "judgment": 3,
+                "result_status": 1,
+            }
+        ]
+
+    monkeypatch.setattr("umbrela.cli.main.run_judge_direct", fake_cli_run_judge_direct)
+    monkeypatch.setattr(
+        "umbrela.api.runtime.run_judge_direct", fake_api_run_judge_direct
+    )
+
+    exit_code = main(
+        [
+            "judge",
+            "--backend",
+            "gpt",
+            "--model",
+            "gpt-4o",
+            "--input-json",
+            json.dumps(payload),
+            "--output",
+            "json",
+        ]
+    )
+
+    assert exit_code == 0
+
+    client = TestClient(
+        create_app(
+            ServerConfig(
+                host="127.0.0.1",
+                port=8084,
+                backend="gpt",
+                model="gpt-4o",
+            )
+        )
+    )
+    response = client.post("/v1/judge", json=payload)
+
+    assert response.status_code == 200
+    assert seen["cli_request"] == seen["api_request"]
+
+
 def test_batch_judge_writes_jsonl_output(tmp_path: Path, monkeypatch: Any) -> None:
     input_path = tmp_path / "requests.jsonl"
     output_path = tmp_path / "judgments.jsonl"
