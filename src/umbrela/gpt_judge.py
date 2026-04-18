@@ -5,8 +5,6 @@ from typing import Any
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
-# Select relevance categories to be judged.
-JUDGE_CAT = [0, 1, 2, 3]
 DEFAULT_MAX_NEW_TOKENS = 100
 DEFAULT_REASONING_MAX_NEW_TOKENS = 4096
 

@@ -128,11 +128,9 @@ def generate_holes(
     for cat in judge_cat:
         req_tuple_list: list[tuple[QrelKey, QrelKey]] = []
 
-        total_count = 0
         for qid in qrel_data:
             for doc_id in qrel_data[qid]:
                 if int(qrel_data[qid][doc_id]) == cat:
-                    total_count += 1
                     if qid not in exception_qid:
                         req_tuple_list.append((qid, doc_id))
 

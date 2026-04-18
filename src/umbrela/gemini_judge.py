@@ -9,9 +9,6 @@ from vertexai.generative_models import GenerationConfig, GenerativeModel
 from umbrela.llm_judge import LLMJudge
 from umbrela.utils import common_utils
 
-# Select relevance categories to be judged.
-JUDGE_CAT = [0, 1, 2, 3]
-
 
 class GeminiJudge(LLMJudge):
     def __init__(
