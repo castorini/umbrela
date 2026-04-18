@@ -12,9 +12,9 @@ from umbrela.cli.prompt_view import (
     build_prompt_template_view,
     build_rendered_prompt_view,
     list_prompt_templates,
-    resolve_prompt_template,
 )
 from umbrela.cli.responses import CommandResponse
+from umbrela.prompts import get_prompt_template
 from umbrela.utils import qrel_utils
 
 
@@ -32,7 +32,7 @@ def run_prompt_command(
             artifacts=[make_data_artifact("prompt-catalog", catalog)],
         )
     if args.prompt_command == "show":
-        template = resolve_prompt_template(
+        template = get_prompt_template(
             prompt_file=args.prompt_file,
             prompt_type=args.prompt_type,
             few_shot_count=args.few_shot_count,
@@ -69,7 +69,7 @@ def run_prompt_command(
                 "candidate_count": len(candidates),
             },
         )
-    template = resolve_prompt_template(
+    template = get_prompt_template(
         prompt_file=args.prompt_file,
         prompt_type=args.prompt_type,
         few_shot_count=args.few_shot_count,

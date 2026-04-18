@@ -51,16 +51,6 @@ def list_prompt_templates() -> list[dict[str, Any]]:
     return catalog
 
 
-def resolve_prompt_template(
-    *, prompt_file: str | None, prompt_type: str | None, few_shot_count: int
-) -> PromptTemplate:
-    return get_prompt_template(
-        prompt_file=prompt_file,
-        prompt_type=prompt_type,
-        few_shot_count=few_shot_count,
-    )
-
-
 def build_prompt_template_view(
     template: PromptTemplate,
     *,
