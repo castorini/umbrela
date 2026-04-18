@@ -1306,11 +1306,11 @@ def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
         prompt_type=args.prompt_type,
         few_shot_count=args.few_shot_count,
         candidate_index=args.candidate_index,
+        qrel=args.qrel,
         query=query,
         passage=passage,
         examples=examples,
     )
-    view["selector"]["qrel"] = args.qrel
     return CommandResponse(
         command="prompt",
         mode="inspect",

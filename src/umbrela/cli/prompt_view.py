@@ -6,6 +6,26 @@ from typing import Any
 from umbrela.prompts import PromptTemplate, get_prompt_template
 
 
+def _build_prompt_selector(
+    *,
+    prompt_file: str | None,
+    prompt_type: str | None,
+    few_shot_count: int,
+    candidate_index: int | None = None,
+    qrel: str | None = None,
+) -> dict[str, Any]:
+    selector: dict[str, Any] = {
+        "prompt_file": str(Path(prompt_file).resolve()) if prompt_file else None,
+        "prompt_type": prompt_type,
+        "few_shot_count": few_shot_count,
+    }
+    if candidate_index is not None:
+        selector["candidate_index"] = candidate_index
+    if qrel is not None:
+        selector["qrel"] = qrel
+    return selector
+
+
 def list_prompt_templates() -> list[dict[str, Any]]:
     catalog: list[dict[str, Any]] = []
     for prompt_type in ("basic", "bing"):
@@ -17,10 +37,11 @@ def list_prompt_templates() -> list[dict[str, Any]]:
             )
             catalog.append(
                 {
-                    "selector": {
-                        "prompt_type": prompt_type,
-                        "few_shot_count": few_shot_count,
-                    },
+                    "selector": _build_prompt_selector(
+                        prompt_file=None,
+                        prompt_type=prompt_type,
+                        few_shot_count=few_shot_count,
+                    ),
                     "few_shot_mode": "fewshot" if few_shot_count > 0 else "zeroshot",
                     "source_path": template.source_path,
                     "method": template.method,
@@ -47,15 +68,12 @@ def build_prompt_template_view(
     prompt_type: str | None,
     few_shot_count: int,
 ) -> dict[str, Any]:
-    resolved_prompt_file = None
-    if prompt_file is not None:
-        resolved_prompt_file = str(Path(prompt_file).resolve())
     return {
-        "selector": {
-            "prompt_file": resolved_prompt_file,
-            "prompt_type": prompt_type,
-            "few_shot_count": few_shot_count,
-        },
+        "selector": _build_prompt_selector(
+            prompt_file=prompt_file,
+            prompt_type=prompt_type,
+            few_shot_count=few_shot_count,
+        ),
         "template": template.metadata(),
     }
 
@@ -111,20 +129,19 @@ def build_rendered_prompt_view(
     prompt_type: str | None,
     few_shot_count: int,
     candidate_index: int,
+    qrel: str | None,
     query: str,
     passage: str,
     examples: str,
 ) -> dict[str, Any]:
-    resolved_prompt_file = None
-    if prompt_file is not None:
-        resolved_prompt_file = str(Path(prompt_file).resolve())
     return {
-        "selector": {
-            "prompt_file": resolved_prompt_file,
-            "prompt_type": prompt_type,
-            "few_shot_count": few_shot_count,
-            "candidate_index": candidate_index,
-        },
+        "selector": _build_prompt_selector(
+            prompt_file=prompt_file,
+            prompt_type=prompt_type,
+            few_shot_count=few_shot_count,
+            candidate_index=candidate_index,
+            qrel=qrel,
+        ),
         "messages": {
             "system": template.system_message,
             "user": template.render(

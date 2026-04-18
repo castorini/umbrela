@@ -324,6 +324,7 @@ class PromptTemplateTests(unittest.TestCase):
             prompt_type="basic",
             few_shot_count=2,
             candidate_index=0,
+            qrel=None,
             query="sample query",
             passage="sample passage",
             examples="demo examples",
