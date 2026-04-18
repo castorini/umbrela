@@ -5,43 +5,34 @@ import importlib.metadata
 import json
 import sys
 from collections.abc import Sequence
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
-from umbrela.api.runtime import ServerConfig, execute_direct_judge
 from umbrela.utils import qrel_utils
 
-from .adapters import make_data_artifact, make_file_artifact
+from .commands.common import format_text_judgments
+from .commands.evaluate import run_evaluate_command
+from .commands.judge import run_judge_command
+from .commands.meta import run_describe_command, run_doctor_command, run_schema_command
+from .commands.prompt import run_prompt_command
+from .commands.serve import run_serve_command
+from .commands.validate import run_validate_command
+from .commands.view import run_view_command
 from .config import load_config
-from .introspection import (
-    COMMAND_DESCRIPTIONS,
-    SCHEMAS,
-    doctor_report,
-    validate_judge_batch_file,
-    validate_judge_payload,
+from .errors import (
+    INVALID_ARGS_EXIT_CODE,
+    RUNTIME_EXIT_CODE,
+    CLIError,
 )
-from .io import read_jsonl, write_jsonl
-from .logging_utils import setup_logging
-from .normalize import normalize_direct_judge_input, prepare_direct_judge_payload
+from .introspection import COMMAND_DESCRIPTIONS, SCHEMAS
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .prompt_view import (
-    build_prompt_template_view,
-    build_rendered_prompt_view,
-    list_prompt_templates,
     render_prompt_catalog_text,
     render_prompt_template_text,
     render_rendered_prompt_text,
-    resolve_prompt_template,
 )
 from .responses import CommandResponse
-from .view import (
-    ViewError,
-    build_view_summary,
-    detect_artifact_type,
-    load_records,
-    render_view_summary,
-)
+from .view import render_view_summary
 
 _shtab: Any | None
 try:
@@ -51,10 +42,6 @@ except ModuleNotFoundError:  # optional dev dependency
 
 shtab = cast(Any, _shtab)
 
-INVALID_ARGS_EXIT_CODE = 2
-MISSING_RESOURCE_EXIT_CODE = 4
-VALIDATION_EXIT_CODE = 5
-RUNTIME_EXIT_CODE = 6
 KNOWN_COMMANDS = (
     "judge",
     "evaluate",
@@ -78,26 +65,6 @@ TOP_LEVEL_EXAMPLES = (
     "umbrela serve --backend gpt --model gpt-4o --port 8084",
     "umbrela doctor --output json",
 )
-
-
-class CLIError(Exception):
-    def __init__(
-        self,
-        message: str,
-        *,
-        exit_code: int,
-        status: str,
-        error_code: str,
-        command: str | None = None,
-        details: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(message)
-        self.message = message
-        self.exit_code = exit_code
-        self.status = status
-        self.error_code = error_code
-        self.command = command or "unknown"
-        self.details = details or {}
 
 
 class CLIArgumentParser(argparse.ArgumentParser):
@@ -185,63 +152,6 @@ def _build_runtime_error_response(command: str, error: Exception) -> CommandResp
     )
 
 
-def _ensure_file_exists(path: str, *, command: str, field_name: str) -> None:
-    if not Path(path).exists():
-        raise CLIError(
-            f"{field_name} does not exist: {path}",
-            exit_code=MISSING_RESOURCE_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_input",
-            command=command,
-            details={"field": field_name, "path": path},
-        )
-
-
-def _resolve_write_policy(args: argparse.Namespace) -> str:
-    if getattr(args, "resume", False):
-        return "resume"
-    if getattr(args, "overwrite", False):
-        return "overwrite"
-    if getattr(args, "fail_if_exists", False):
-        return "fail_if_exists"
-    return "default_fail_if_exists"
-
-
-def _prepare_output_path(
-    args: argparse.Namespace,
-    *,
-    command: str,
-    attribute_name: str = "output_file",
-) -> str:
-    output_path = getattr(args, attribute_name, None)
-    if output_path is None:
-        raise CLIError(
-            f"{command} requires --{attribute_name.replace('_', '-')}",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code=f"missing_{attribute_name}",
-            command=command,
-        )
-    output_file = Path(cast(str, output_path))
-    write_policy = _resolve_write_policy(args)
-    if output_file.exists():
-        if write_policy == "resume":
-            return str(output_file)
-        if write_policy == "overwrite":
-            output_file.write_text("", encoding="utf-8")
-            return str(output_file)
-        raise CLIError(
-            f"Output file already exists: {output_file}",
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="write_policy_conflict",
-            command=command,
-            details={"path": str(output_file), "write_policy": write_policy},
-        )
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    return str(output_file)
-
-
 def _write_manifest(manifest_path: str | None, response: CommandResponse) -> None:
     if manifest_path is None:
         return
@@ -249,105 +159,6 @@ def _write_manifest(manifest_path: str | None, response: CommandResponse) -> Non
         json.dumps(response.to_envelope(), indent=2) + "\n",
         encoding="utf-8",
     )
-
-
-def _filtered_records_from_judgments(
-    records: list[dict[str, Any]],
-    judgments: list[dict[str, Any]],
-    *,
-    min_judgment: int,
-) -> list[dict[str, Any]]:
-    filtered_records: list[dict[str, Any]] = []
-    judgment_index = 0
-    for record_index, record in enumerate(records, start=1):
-        candidates = cast(list[dict[str, Any]], record["candidates"])
-        next_index = judgment_index + len(candidates)
-        record_judgments = judgments[judgment_index:next_index]
-        if len(record_judgments) != len(candidates):
-            raise CLIError(
-                "judge output count does not match the number of input candidates",
-                exit_code=RUNTIME_EXIT_CODE,
-                status="runtime_error",
-                error_code="judgment_count_mismatch",
-                command="judge",
-                details={
-                    "record_index": record_index,
-                    "candidate_count": len(candidates),
-                    "judgment_count": len(record_judgments),
-                },
-            )
-        kept_candidates = [
-            candidate
-            for candidate, judgment in zip(candidates, record_judgments, strict=True)
-            if int(judgment["judgment"]) >= min_judgment
-        ]
-        if not kept_candidates:
-            raise CLIError(
-                "Filtering removed every candidate from a request",
-                exit_code=RUNTIME_EXIT_CODE,
-                status="runtime_error",
-                error_code="empty_filtered_request",
-                command="judge",
-                details={
-                    "record_index": record_index,
-                    "min_judgment": min_judgment,
-                    "query": record["query"],
-                },
-            )
-        filtered_records.append(
-            {
-                "query": record["query"],
-                "candidates": kept_candidates,
-            }
-        )
-        judgment_index = next_index
-    if judgment_index != len(judgments):
-        raise CLIError(
-            "judge output count does not match the input request file",
-            exit_code=RUNTIME_EXIT_CODE,
-            status="runtime_error",
-            error_code="judgment_count_mismatch",
-            command="judge",
-            details={
-                "consumed_judgments": judgment_index,
-                "total_judgments": len(judgments),
-            },
-        )
-    return filtered_records
-
-
-def _read_direct_payload(args: argparse.Namespace) -> dict[str, Any]:
-    try:
-        if args.stdin:
-            return cast(dict[str, Any], json.loads(sys.stdin.read()))
-        if args.input_json is not None:
-            return cast(dict[str, Any], json.loads(args.input_json))
-    except json.JSONDecodeError as exc:
-        raise CLIError(
-            "Input payload is not valid JSON",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="invalid_json",
-            command=args.command,
-            details={"error": str(exc)},
-        ) from exc
-    raise CLIError(
-        "Direct input requires --stdin or --input-json",
-        exit_code=INVALID_ARGS_EXIT_CODE,
-        status="validation_error",
-        error_code="missing_direct_input",
-        command=args.command,
-    )
-
-
-def _direct_judge_response_args(args: argparse.Namespace) -> argparse.Namespace:
-    if getattr(args, "output", "text") != "text" or getattr(
-        args, "include_trace", False
-    ):
-        return args
-    response_args = deepcopy(args)
-    response_args.include_trace = True
-    return response_args
 
 
 def build_parser() -> CLIArgumentParser:
@@ -959,500 +770,29 @@ def build_parser() -> CLIArgumentParser:
     return parser
 
 
-def _format_text_judgments(
-    judgments: list[dict[str, Any]], include_reasoning: bool
-) -> str:
-    blocks: list[str] = []
-    for judgment in judgments:
-        lines = [f"query: {judgment['query']}"]
-        lines.append(f"candidate: {judgment['passage']}")
-        lines.append(f"judgment: {judgment['judgment']}")
-        if int(judgment.get("result_status", 1)) == 0:
-            lines.append("parsing failed")
-        if include_reasoning and judgment.get("reasoning"):
-            lines.append(f"reasoning: {judgment['reasoning']}")
-        blocks.append("\n".join(lines))
-    return "\n-----\n".join(blocks)
-
-
-def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
-    setup_logging(getattr(args, "log_level", 0), quiet=getattr(args, "quiet", False))
-    if args.execution_mode == "async" and args.backend != "gpt":
-        raise CLIError(
-            "--execution-mode async is currently supported only for --backend gpt",
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="unsupported_execution_mode",
-            command="judge",
-        )
-    if args.min_judgment is not None and not 0 <= args.min_judgment <= 3:
-        raise CLIError(
-            "--min-judgment must be between 0 and 3",
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="invalid_min_judgment",
-            command="judge",
-        )
-    if args.filtered_output_file is not None and args.min_judgment is None:
-        raise CLIError(
-            "--filtered-output-file requires --min-judgment",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_min_judgment",
-            command="judge",
-        )
-    if args.input_file is not None:
-        _ensure_file_exists(args.input_file, command="judge", field_name="input_file")
-        validation = validate_judge_batch_file(args.input_file)
-        if not validation["valid"]:
-            raise CLIError(
-                "Batch judge input file does not match the expected request shape",
-                exit_code=VALIDATION_EXIT_CODE,
-                status="validation_error",
-                error_code="invalid_input_file",
-                command="judge",
-            )
-        records = read_jsonl(args.input_file)
-        if args.dry_run:
-            judgments: list[dict[str, Any]] = []
-        else:
-            judgments = run_judge_batch(records, args)
-        filtered_records: list[dict[str, Any]] = []
-        if args.filtered_output_file is not None and not args.dry_run:
-            filtered_records = _filtered_records_from_judgments(
-                records,
-                judgments,
-                min_judgment=args.min_judgment,
-            )
-        response = CommandResponse(
-            command="judge",
-            inputs={
-                "mode": "batch",
-                "input_file": args.input_file,
-                "backend": args.backend,
-            },
-            resolved={
-                "record_count": len(records),
-                "execution_mode": args.execution_mode,
-                "min_judgment": args.min_judgment,
-            },
-            validation=validation,
-            artifacts=[make_data_artifact("judgments", judgments)],
-        )
-        if args.dry_run or args.validate_only:
-            response.mode = "validate" if args.validate_only else "dry-run"
-            response.artifacts = []
-            return response
-        if args.output_file is not None and not args.dry_run:
-            output_path = _prepare_output_path(args, command="judge")
-            write_jsonl(output_path, judgments)
-            response.artifacts.append(
-                make_file_artifact("judgments-jsonl", output_path)
-            )
-        if args.filtered_output_file is not None and not args.dry_run:
-            filtered_output_path = _prepare_output_path(
-                args,
-                command="judge",
-                attribute_name="filtered_output_file",
-            )
-            write_jsonl(filtered_output_path, filtered_records)
-            response.artifacts.append(
-                make_file_artifact(
-                    "filtered-requests-jsonl",
-                    filtered_output_path,
-                )
-            )
-        return response
-
-    payload = _read_direct_payload(args)
-    prepared = prepare_direct_judge_payload(payload)
-    if args.dry_run or args.validate_only:
-        return CommandResponse(
-            command="judge",
-            mode="validate" if args.validate_only else "dry-run",
-            inputs={"mode": "direct", "backend": args.backend},
-            resolved={
-                "input_mode": "direct",
-                "execution_mode": args.execution_mode,
-                "backend": args.backend,
-                "model": args.model,
-                "prompt_type": args.prompt_type,
-                "few_shot_count": args.few_shot_count,
-            },
-            validation=prepared.validation,
-            artifacts=[make_data_artifact("validated-request", prepared.normalized)],
-        )
-    return execute_direct_judge(
-        payload,
-        args=_direct_judge_response_args(args),
-        judge_runner=run_judge_direct,
-        prepared_payload=prepared,
-    )
-
-
-def _run_evaluate_command(args: argparse.Namespace) -> CommandResponse:
-    setup_logging(getattr(args, "log_level", 0), quiet=getattr(args, "quiet", False))
-    if args.backend != "ensemble" and not args.model:
-        raise CLIError(
-            "evaluate requires --model unless --backend ensemble is used",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_model",
-            command="evaluate",
-        )
-    if args.backend == "ensemble" and (not args.llm_judges or not args.model_names):
-        raise CLIError(
-            "ensemble evaluation requires --llm-judges and --model-names",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_ensemble_config",
-            command="evaluate",
-        )
-    if args.result_file is not None:
-        _ensure_file_exists(
-            args.result_file, command="evaluate", field_name="result_file"
-        )
-    if args.dry_run or args.validate_only:
-        return CommandResponse(
-            command="evaluate",
-            mode="validate" if args.validate_only else "dry-run",
-            inputs={
-                "backend": args.backend,
-                "qrel": args.qrel,
-                "result_file": args.result_file,
-            },
-            resolved={"judge_cat": args.judge_cat},
-        )
-    result = run_evaluate(args)
-    artifacts = [make_file_artifact("evaluation-output", result.result_path)]
-    seen_paths = {artifacts[0]["path"]}
-    extra_artifact_index = 0
-    for path in result.artifact_paths:
-        artifact_path = make_file_artifact(
-            f"artifact-{extra_artifact_index}",
-            path,
-        )
-        if artifact_path["path"] in seen_paths:
-            continue
-        seen_paths.add(artifact_path["path"])
-        artifacts.append(artifact_path)
-        extra_artifact_index += 1
-    return CommandResponse(
-        command="evaluate",
-        inputs={
-            "backend": args.backend,
-            "qrel": args.qrel,
-            "result_file": args.result_file,
-        },
-        resolved={"judge_cat": args.judge_cat, "num_sample": args.num_sample},
-        artifacts=artifacts,
-        metrics=result.metrics,
-        warnings=[result.stdout] if result.stdout.strip() else [],
-    )
-
-
-def _run_describe_command(args: argparse.Namespace) -> CommandResponse:
-    return CommandResponse(
-        command="describe",
-        mode="inspect",
-        artifacts=[make_data_artifact(args.target, COMMAND_DESCRIPTIONS[args.target])],
-    )
-
-
-def _run_schema_command(args: argparse.Namespace) -> CommandResponse:
-    return CommandResponse(
-        command="schema",
-        mode="inspect",
-        artifacts=[make_data_artifact(args.target, SCHEMAS[args.target])],
-    )
-
-
-def _run_doctor_command(*, config_path: Path | None = None) -> CommandResponse:
-    report = doctor_report()
-    report["config_file"] = str(config_path) if config_path else None
-    return CommandResponse(
-        command="doctor",
-        mode="inspect",
-        metrics=report,
-        validation={"python_ok": report["python_ok"]},
-    )
-
-
-def _run_view_command(args: argparse.Namespace) -> CommandResponse:
-    try:
-        records = load_records(args.path)
-        artifact_type = detect_artifact_type(records, args.artifact_type)
-    except ViewError as error:
-        raise CLIError(
-            str(error),
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="invalid_view_input",
-            command="view",
-            details={"path": args.path, "artifact_type": args.artifact_type},
-        ) from error
-
-    view_summary = build_view_summary(
-        args.path,
-        records,
-        artifact_type,
-        record_limit=args.records,
-        show_prompts=args.show_prompts,
-    )
-    return CommandResponse(
-        command="view",
-        mode="inspect",
-        inputs={"path": args.path},
-        resolved={
-            "artifact_type": artifact_type,
-            "records": args.records,
-            "show_prompts": args.show_prompts,
-            "color": args.color,
-        },
-        artifacts=[make_data_artifact("view-summary", view_summary)],
-        metrics=view_summary["summary"],
-    )
-
-
-def _run_prompt_command(args: argparse.Namespace) -> CommandResponse:
-    if args.prompt_command == "list":
-        catalog = list_prompt_templates()
-        return CommandResponse(
-            command="prompt",
-            mode="inspect",
-            resolved={"prompt_command": "list"},
-            artifacts=[make_data_artifact("prompt-catalog", catalog)],
-        )
-    if args.prompt_command == "show":
-        template = resolve_prompt_template(
-            prompt_file=args.prompt_file,
-            prompt_type=args.prompt_type,
-            few_shot_count=args.few_shot_count,
-        )
-        view = build_prompt_template_view(
-            template,
-            prompt_file=args.prompt_file,
-            prompt_type=args.prompt_type,
-            few_shot_count=args.few_shot_count,
-        )
-        return CommandResponse(
-            command="prompt",
-            mode="inspect",
-            resolved={
-                "prompt_command": "show",
-                "prompt_file": view["selector"]["prompt_file"],
-                "prompt_type": view["selector"]["prompt_type"],
-                "few_shot_count": view["selector"]["few_shot_count"],
-            },
-            artifacts=[make_data_artifact("prompt-template", view)],
-        )
-    payload = _read_direct_payload(args)
-    normalized = normalize_direct_judge_input(payload)
-    candidates = cast(list[dict[str, Any]], normalized["candidates"])
-    if not 0 <= args.candidate_index < len(candidates):
-        raise CLIError(
-            "--candidate-index is out of range for the input payload",
-            exit_code=VALIDATION_EXIT_CODE,
-            status="validation_error",
-            error_code="invalid_candidate_index",
-            command="prompt",
-            details={
-                "candidate_index": args.candidate_index,
-                "candidate_count": len(candidates),
-            },
-        )
-    template = resolve_prompt_template(
-        prompt_file=args.prompt_file,
-        prompt_type=args.prompt_type,
-        few_shot_count=args.few_shot_count,
-    )
-    query = str(cast(dict[str, Any], normalized["query"])["text"])
-    passage = str(candidates[args.candidate_index]["doc"]["segment"])
-    if args.examples_file is not None:
-        _ensure_file_exists(
-            args.examples_file, command="prompt", field_name="examples_file"
-        )
-        examples = Path(args.examples_file).read_text(encoding="utf-8")
-    elif args.examples_text is not None:
-        examples = args.examples_text
-    elif args.few_shot_count > 0:
-        if args.qrel is None:
-            raise CLIError(
-                "prompt render with --few-shot-count > 0 requires --qrel, "
-                "--examples-text, or --examples-file",
-                exit_code=INVALID_ARGS_EXIT_CODE,
-                status="validation_error",
-                error_code="missing_prompt_examples",
-                command="prompt",
-            )
-        try:
-            examples = qrel_utils.generate_examples_prompt(
-                args.qrel, args.few_shot_count
-            )
-        except Exception as error:  # noqa: BLE001
-            raise CLIError(
-                f"Unable to generate prompt examples: {error}",
-                exit_code=VALIDATION_EXIT_CODE,
-                status="validation_error",
-                error_code="prompt_example_generation_failed",
-                command="prompt",
-                details={"qrel": args.qrel, "few_shot_count": args.few_shot_count},
-            ) from error
-    else:
-        examples = ""
-    view = build_rendered_prompt_view(
-        template,
-        prompt_file=args.prompt_file,
-        prompt_type=args.prompt_type,
-        few_shot_count=args.few_shot_count,
-        candidate_index=args.candidate_index,
-        qrel=args.qrel,
-        query=query,
-        passage=passage,
-        examples=examples,
-    )
-    return CommandResponse(
-        command="prompt",
-        mode="inspect",
-        inputs={"mode": "direct"},
-        resolved={
-            "prompt_command": "render",
-            "prompt_file": view["selector"]["prompt_file"],
-            "prompt_type": view["selector"]["prompt_type"],
-            "few_shot_count": view["selector"]["few_shot_count"],
-            "candidate_index": view["selector"]["candidate_index"],
-            "qrel": args.qrel,
-            "part": args.part,
-        },
-        artifacts=[make_data_artifact("rendered-prompt", view)],
-    )
-
-
-def _run_validate_command(args: argparse.Namespace) -> CommandResponse:
-    response = CommandResponse(command="validate", mode="validate")
-    if args.target == "judge":
-        if args.input_file is not None:
-            _ensure_file_exists(
-                args.input_file, command="validate", field_name="input_file"
-            )
-            response.validation = validate_judge_batch_file(args.input_file)
-        else:
-            payload = _read_direct_payload(args)
-            response.validation = validate_judge_payload(payload)
-        response.status = (
-            "success" if response.validation.get("valid", False) else "validation_error"
-        )
-        response.exit_code = 0 if response.status == "success" else VALIDATION_EXIT_CODE
-        if response.status != "success":
-            response.errors.append(
-                {
-                    "code": "validation_failed",
-                    "message": "judge input failed validation",
-                    "details": response.validation,
-                    "retryable": False,
-                }
-            )
-        return response
-    if args.qrel is None:
-        raise CLIError(
-            "validate evaluate requires --qrel",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_qrel",
-            command="validate",
-        )
-    if args.result_file is None:
-        raise CLIError(
-            "validate evaluate requires --result-file",
-            exit_code=INVALID_ARGS_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_result_file",
-            command="validate",
-        )
-    _ensure_file_exists(args.result_file, command="validate", field_name="result_file")
-    qrel_supported = qrel_utils.get_qrels_file(args.qrel) is not None
-    response.validation = {
-        "valid": qrel_supported,
-        "qrel": args.qrel,
-        "result_file_present": True,
-        "qrel_supported": qrel_supported,
-    }
-    response.status = "success" if qrel_supported else "validation_error"
-    response.exit_code = 0 if qrel_supported else VALIDATION_EXIT_CODE
-    if not qrel_supported:
-        response.errors.append(
-            {
-                "code": "unsupported_qrel",
-                "message": f"Unsupported qrel: {args.qrel}",
-                "details": {"qrel": args.qrel},
-                "retryable": False,
-            }
-        )
-    return response
-
-
-def _run_serve_command(args: argparse.Namespace) -> CommandResponse:
-    try:
-        import uvicorn
-
-        from umbrela.api.app import create_app
-    except ModuleNotFoundError as error:
-        raise CLIError(
-            "serve requires FastAPI dependencies; install the `api` extra",
-            exit_code=MISSING_RESOURCE_EXIT_CODE,
-            status="validation_error",
-            error_code="missing_api_dependencies",
-            command="serve",
-            details={"missing_dependencies": ["fastapi", "uvicorn"]},
-        ) from error
-
-    app = create_app(
-        ServerConfig(
-            host=args.host,
-            port=args.port,
-            backend=args.backend,
-            model=args.model,
-            prompt_file=args.prompt_file,
-            prompt_type=args.prompt_type,
-            few_shot_count=args.few_shot_count,
-            execution_mode=args.execution_mode,
-            max_concurrency=args.max_concurrency,
-            use_azure_openai=args.use_azure_openai,
-            use_openrouter=args.use_openrouter,
-            reasoning_effort=args.reasoning_effort,
-            device=args.device,
-            include_reasoning=args.include_reasoning,
-            include_trace=args.include_trace,
-            redact_prompts=args.redact_prompts,
-            log_level=args.log_level,
-            quiet=getattr(args, "quiet", False),
-        )
-    )
-    uvicorn.run(app, host=args.host, port=args.port)
-    return CommandResponse(
-        command="serve", resolved={"host": args.host, "port": args.port}
-    )
-
-
 def _run_command(args: argparse.Namespace) -> CommandResponse:
     if args.command == "judge":
-        return _run_judge_command(args)
+        return run_judge_command(
+            args,
+            run_judge_batch_fn=run_judge_batch,
+            run_judge_direct_fn=run_judge_direct,
+        )
     if args.command == "evaluate":
-        return _run_evaluate_command(args)
+        return run_evaluate_command(args, run_evaluate_fn=run_evaluate)
     if args.command == "serve":
-        return _run_serve_command(args)
+        return run_serve_command(args)
     if args.command == "view":
-        return _run_view_command(args)
+        return run_view_command(args)
     if args.command == "prompt":
-        return _run_prompt_command(args)
+        return run_prompt_command(args, qrel_utils_module=qrel_utils)
     if args.command == "describe":
-        return _run_describe_command(args)
+        return run_describe_command(args.target)
     if args.command == "schema":
-        return _run_schema_command(args)
+        return run_schema_command(args.target)
     if args.command == "doctor":
-        return _run_doctor_command(config_path=getattr(args, "_config_path", None))
+        return run_doctor_command(config_path=getattr(args, "_config_path", None))
     if args.command == "validate":
-        return _run_validate_command(args)
+        return run_validate_command(args)
     raise CLIError(
         f"Unknown command: {args.command}",
         exit_code=INVALID_ARGS_EXIT_CODE,
@@ -1505,7 +845,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ):
             artifact = cast(list[dict[str, Any]], response.artifacts[0]["data"])
             sys.stdout.write(
-                _format_text_judgments(
+                format_text_judgments(
                     artifact, include_reasoning=args.include_reasoning
                 )
                 + "\n"
