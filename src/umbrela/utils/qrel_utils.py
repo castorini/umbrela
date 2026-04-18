@@ -21,6 +21,7 @@ except Exception as exc:
 type QrelKey = int | str
 type QrelsData = dict[QrelKey, dict[QrelKey, str]]
 type QueryMappings = dict[int, dict[str, str]]
+type CategoryPairs = list[tuple[QrelKey, QrelKey]]
 
 
 def _require_pyserini(feature: str, needs_java: bool = False) -> None:
@@ -36,17 +37,27 @@ def _require_pyserini(feature: str, needs_java: bool = False) -> None:
         raise ImportError(message) from _PYSERINI_IMPORT_ERROR
 
 
+def _pairs_for_category(
+    qrel_data: QrelsData,
+    category: int,
+    *,
+    exception_qid: set[QrelKey] | None = None,
+) -> CategoryPairs:
+    blocked_qids = exception_qid or set()
+    pairs: CategoryPairs = []
+    for qid in qrel_data:
+        for doc_id in qrel_data[qid]:
+            if int(qrel_data[qid][doc_id]) == category and qid not in blocked_qids:
+                pairs.append((qid, doc_id))
+    return pairs
+
+
 def get_catwise_data(
     qrel_data: QrelsData, few_shot_count: int
 ) -> list[tuple[QrelKey, QrelKey]]:
     examples: list[tuple[QrelKey, QrelKey]] = []
     for cat in [0, 1, 2, 3]:
-        req_tuple_list: list[tuple[QrelKey, QrelKey]] = []
-
-        for qid in qrel_data:
-            for doc_id in qrel_data[qid]:
-                if int(qrel_data[qid][doc_id]) == cat:
-                    req_tuple_list.append((qid, doc_id))
+        req_tuple_list = _pairs_for_category(qrel_data, cat)
         print(f"No. of judgments for category {cat}: {len(req_tuple_list)}")
 
         assert len(req_tuple_list) >= few_shot_count, (
@@ -126,16 +137,8 @@ def generate_holes(
     holes: list[tuple[QrelKey, QrelKey]] = []
     gts: list[int] = []
     for cat in judge_cat:
-        req_tuple_list: list[tuple[QrelKey, QrelKey]] = []
-
-        for qid in qrel_data:
-            for doc_id in qrel_data[qid]:
-                if int(qrel_data[qid][doc_id]) == cat:
-                    if qid not in exception_qid:
-                        req_tuple_list.append((qid, doc_id))
-
-        samples = req_tuple_list
-        print(f"No. of judgments for category {cat}: {len(req_tuple_list)}")
+        samples = _pairs_for_category(qrel_data, cat, exception_qid=set(exception_qid))
+        print(f"No. of judgments for category {cat}: {len(samples)}")
         holes += samples
         gts += [cat] * len(samples)
     return holes, gts
@@ -251,12 +254,7 @@ def get_dropped_cat_count(qrel: str, removal_fraction: float) -> dict[str, int]:
 
     cat_dict: dict[str, int] = {}
     for cat in [0, 1, 2, 3]:
-        req_tuple_list: list[tuple[QrelKey, QrelKey]] = []
-
-        for qid in qrel_data:
-            for doc_id in qrel_data[qid]:
-                if int(qrel_data[qid][doc_id]) == cat:
-                    req_tuple_list.append((qid, doc_id))
+        req_tuple_list = _pairs_for_category(qrel_data, cat)
 
         print(
             f"No. of judgments for category {cat}: {len(req_tuple_list)}. "
