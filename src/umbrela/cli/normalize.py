@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, cast
+
+
+@dataclass(frozen=True)
+class PreparedDirectJudgePayload:
+    validation: dict[str, Any]
+    normalized: dict[str, Any]
 
 
 def unwrap_direct_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -90,3 +97,23 @@ def normalize_direct_judge_input(payload: dict[str, Any]) -> dict[str, Any]:
             for index, candidate in enumerate(candidates)
         ],
     }
+
+
+def prepare_direct_judge_payload(payload: dict[str, Any]) -> PreparedDirectJudgePayload:
+    return PreparedDirectJudgePayload(
+        validation={"valid": True, "record_count": 1},
+        normalized=normalize_direct_judge_input(payload),
+    )
+
+
+def extract_direct_judge_overrides(payload: dict[str, Any]) -> dict[str, Any]:
+    override_payload = payload.get("overrides", {})
+    if not isinstance(override_payload, dict):
+        raise ValueError("overrides must be an object when provided")
+    unwrapped_payload = unwrap_direct_judge_payload(payload)
+    unwrapped_override_payload = unwrapped_payload.get("overrides", {})
+    if not isinstance(unwrapped_override_payload, dict):
+        raise ValueError("overrides must be an object when provided")
+    combined = dict(override_payload)
+    combined.update(unwrapped_override_payload)
+    return combined

@@ -23,7 +23,7 @@ from .introspection import (
 )
 from .io import read_jsonl, write_jsonl
 from .logging_utils import setup_logging
-from .normalize import normalize_direct_judge_input
+from .normalize import normalize_direct_judge_input, prepare_direct_judge_payload
 from .operations import run_evaluate, run_judge_batch, run_judge_direct
 from .prompt_view import (
     build_prompt_template_view,
@@ -1065,8 +1065,7 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
         return response
 
     payload = _read_direct_payload(args)
-    validation = validate_judge_payload(payload)
-    normalized = normalize_direct_judge_input(payload)
+    prepared = prepare_direct_judge_payload(payload)
     if args.dry_run or args.validate_only:
         return CommandResponse(
             command="judge",
@@ -1080,13 +1079,14 @@ def _run_judge_command(args: argparse.Namespace) -> CommandResponse:
                 "prompt_type": args.prompt_type,
                 "few_shot_count": args.few_shot_count,
             },
-            validation=validation,
-            artifacts=[make_data_artifact("validated-request", normalized)],
+            validation=prepared.validation,
+            artifacts=[make_data_artifact("validated-request", prepared.normalized)],
         )
     return execute_direct_judge(
         payload,
         args=_direct_judge_response_args(args),
         judge_runner=run_judge_direct,
+        prepared_payload=prepared,
     )
 
 

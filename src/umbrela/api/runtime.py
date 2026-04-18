@@ -5,10 +5,10 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from umbrela.cli.adapters import make_data_artifact, serialize_direct_judgment
-from umbrela.cli.introspection import validate_judge_payload
 from umbrela.cli.normalize import (
-    normalize_direct_judge_input,
-    unwrap_direct_judge_payload,
+    PreparedDirectJudgePayload,
+    extract_direct_judge_overrides,
+    prepare_direct_judge_payload,
 )
 from umbrela.cli.operations import run_judge_direct
 from umbrela.cli.responses import CommandResponse
@@ -79,15 +79,7 @@ def _base_args(config: ServerConfig) -> argparse.Namespace:
 
 
 def _extract_override_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    override_payload = payload.get("overrides", {})
-    if not isinstance(override_payload, dict):
-        raise ValueError("overrides must be an object when provided")
-    unwrapped_payload = unwrap_direct_judge_payload(payload)
-    unwrapped_override_payload = unwrapped_payload.get("overrides", {})
-    if not isinstance(unwrapped_override_payload, dict):
-        raise ValueError("overrides must be an object when provided")
-    combined = dict(override_payload)
-    combined.update(unwrapped_override_payload)
+    combined = extract_direct_judge_overrides(payload)
     unknown_keys = sorted(set(combined) - _OVERRIDABLE_FIELDS)
     if unknown_keys:
         raise ValueError(
@@ -131,9 +123,9 @@ def execute_direct_judge(
     *,
     args: argparse.Namespace,
     judge_runner: Any | None = None,
+    prepared_payload: PreparedDirectJudgePayload | None = None,
 ) -> CommandResponse:
-    validation = validate_judge_payload(payload)
-    normalized = normalize_direct_judge_input(payload)
+    prepared = prepared_payload or prepare_direct_judge_payload(payload)
     runner = judge_runner or run_judge_direct
     judgments = [
         serialize_direct_judgment(
@@ -142,7 +134,7 @@ def execute_direct_judge(
             include_trace=getattr(args, "include_trace", False),
             redact_prompts=getattr(args, "redact_prompts", False),
         )
-        for judgment in runner(normalized, args)
+        for judgment in runner(prepared.normalized, args)
     ]
     return CommandResponse(
         command="judge",
@@ -155,7 +147,7 @@ def execute_direct_judge(
             "prompt_type": args.prompt_type,
             "few_shot_count": args.few_shot_count,
         },
-        validation=validation,
+        validation=prepared.validation,
         artifacts=[make_data_artifact("judgments", judgments)],
     )
 
@@ -164,7 +156,11 @@ def run_judge_request(
     payload: dict[str, Any], *, config: ServerConfig
 ) -> CommandResponse:
     effective_config = _merge_config_with_payload(payload, config=config)
-    return execute_direct_judge(payload, args=_base_args(effective_config))
+    return execute_direct_judge(
+        payload,
+        args=_base_args(effective_config),
+        prepared_payload=prepare_direct_judge_payload(payload),
+    )
 
 
 def validation_error_response(message: str) -> CommandResponse:
